@@ -28,4 +28,21 @@ class CheckCodeGenSuite(unittest.TestCase):
         input = Program([VarDecl("a",IntType(),IntLiteral(5000)),FuncDecl("main",[],VoidType(),Block([FuncCall("putInt", [Id("a")])]))])
         expect = "5000"
         self.assertTrue(TestCodeGen.test(input,expect,506))
-    
+
+    def test_507(self):
+        """
+        func main() {
+            putInt(1)
+        }
+        """
+        input = Program([FuncDecl("main",[],VoidType(),Block([FuncCall("putInt",[IntLiteral(1)])]))])
+        self.assertTrue(TestCodeGen.test(input, "1", 507))    
+
+    def test_508(self):
+        """
+        func main() {
+            putFloat(1.0)
+        }
+        """
+        input = Program([FuncDecl("main",[],VoidType(),Block([FuncCall("putFloat",[FloatLiteral(1.0)])]))])
+        self.assertTrue(TestCodeGen.test(input, "1.0", 508))

@@ -72,80 +72,135 @@ class CodeGenerator(BaseVisitor,Utils):
         frame.exitScope()  
 
     def visitProgram(self, ast, c):
-        env ={}
-        env['env'] = [c]
-        self.emit.printout(self.emit.emitPROLOG(self.className, "java.lang.Object"))
-        env = reduce(lambda a,x: self.visit(x,a), ast.decl, env)
-        self.emitObjectInit()
-        self.emit.printout(self.emit.emitEPILOG())
-        return env
+        pass
 
+    def visitParamDecl(self,ast, o):
+        pass
+
+    def visitVarDecl(self, ast, o):
+        pass
+    
+    def visitConstDecl(self, ast, o):
+        pass
 
     def visitFuncDecl(self, ast, o):
-        frame = Frame(ast.name, ast.retType)
-        isMain = ast.name == "main"
-        if isMain:
-            mtype = MType([ArrayType([None],StringType())], VoidType())
-        else:
-            mtype = MType(list(map(lambda x: x.parType, ast.params)), ast.retType)
-        o['env'][0].append(Symbol(ast.name, mtype, CName(self.className)))
-        env = o.copy()
-        env['frame'] = frame
-        self.emit.printout(self.emit.emitMETHOD(ast.name, mtype,True, frame))
-        frame.enterScope(True)
-        self.emit.printout(self.emit.emitLABEL(frame.getStartLabel(), frame))
-        env['env'] = [[]] + env['env']
-        if isMain:
-            self.emit.printout(self.emit.emitVAR(frame.getNewIndex(), "args", ArrayType([None],StringType()), frame.getStartLabel(), frame.getEndLabel(), frame))
-        else:
-            env = reduce(lambda acc,e: self.visit(e,acc),ast.params,env)
-        self.visit(ast.body,env)
-        self.emit.printout(self.emit.emitLABEL(frame.getEndLabel(), frame))
-        if type(ast.retType) is VoidType:
-            self.emit.printout(self.emit.emitRETURN(VoidType(), frame)) 
-        self.emit.printout(self.emit.emitENDMETHOD(frame))
-        frame.exitScope()
-        return o
-    def visitVarDecl(self, ast, o):
-        if 'frame' not in o: # global var
-            o['env'][0].append(Symbol(ast.varName, ast.varType, CName(self.className)))
-            self.emit.printout(self.emit.emitATTRIBUTE(ast.varName, ast.varType, True, False, str(ast.varInit.value) if ast.varInit else None))
-        else:
-            frame = o['frame']
-            index = frame.getNewIndex()
-            o['env'][0].append(Symbol(ast.varName, ast.varType, Index(index)))
-            self.emit.printout(self.emit.emitVAR(index, ast.varName, ast.varType, frame.getStartLabel(), frame.getEndLabel(), frame))  
-            if ast.varInit:
-                self.emit.printout(self.emit.emitPUSHICONST(ast.varInit.value, frame))
-                self.emit.printout(self.emit.emitWRITEVAR(ast.varName, ast.varType, index,  frame))
-        return o
+        pass
     
-    def visitFuncCall(self, ast, o):
-        sym = next(filter(lambda x: x.name == ast.funName, o['env'][-1]),None)
-        env = o.copy()
-        env['isLeft'] = False
-        [self.emit.printout(self.visit(x, env)[0]) for x in ast.args]
-        self.emit.printout(self.emit.emitINVOKESTATIC(f"{sym.value.value}/{ast.funName}",sym.mtype, o['frame']))
-        return o
+    def visitMethodDecl(self, ast, o):
+        pass
     
+    def visitPrototype(self, ast, o):
+        pass    
+
+    def visitIntType(self, ast, o):
+        pass 
+
+    def visitFloatType(self, ast, o):
+        pass
+
+    def visitBoolType(self, ast, o):
+        pass
+
+    def visitStringType(self, ast, o):
+        pass
+
+    def visitVoidType(self, ast, o):
+        pass
+
+    def visitArrayType(self, ast, o):
+        pass
+    
+    def visitStructType(self, ast, o):
+        pass
+
+    def visitInterfaceType(self, ast, o):
+        pass
+
     def visitBlock(self, ast, o):
-        env = o.copy()
-        env['env'] = [[]] + env['env']
-        env['frame'].enterScope(False)
-        self.emit.printout(self.emit.emitLABEL(env['frame'].getStartLabel(), env['frame']))
-        env = reduce(lambda acc,e: self.visit(e,acc),ast.member,env)
-        self.emit.printout(self.emit.emitLABEL(env['frame'].getEndLabel(), env['frame']))
-        env['frame'].exitScope()
-        return o
+        pass
+
+    def visitAssign(self, ast, o):
+        pass
     
+    def visitIf(self, ast, o):
+        pass
+
+    def visitForBasic(self, ast, o):
+        pass
+
+    def visitForStep(self, ast, o):
+        pass
+
+    def visitBreak(self, ast, o):
+        pass
+
+    def visitContinue(self, ast, o):
+        pass
+
+    def visitReturn(self, ast, o):
+        pass
+
     def visitId(self, ast, o):
-        sym = next(filter(lambda x: x.name == ast.name, [j for i in o['env'] for j in i]),None)
-        if type(sym.value) is Index:
-            return self.emit.emitREADVAR(ast.name, sym.mtype, sym.value.value, o['frame']),sym.mtype
-        else:         
-            return self.emit.emitGETSTATIC(f"{self.className}/{sym.name}",sym.mtype,o['frame']),sym.mtype
+        found = next(filter(lambda x: x.name == ast.name, o.sym), None)
+
+        if isinstance(found.value, Index):
+            code = self.emit.emitREADVAR(
+                ast.name, 
+                found.mtype, 
+                found.value.value, 
+                o.frame
+            )
+            return code, found.mtype
         
+        elif isinstance(found.value, CName):
+            code = self.emit.emitGETSTATIC(
+                found.value.value + "/" + ast.name,  
+                found.mtype, 
+                o.frame
+            )
+            return code, found.mtype
+
+
+    def visitArrayCell(self, ast, o):
+        pass
+
+    def visitFieldAccess(self, ast, o):
+        pass
+
+    def visitBinaryOp(self, ast, o):
+        pass
+        
+    def visitUnaryOp(self, ast, o):
+        pass
+
+    def visitFuncCall(self, ast, o):
+        pass
+
+    def visitMethCall(self, ast, o):
+        pass
+
     def visitIntLiteral(self, ast, o):
-        return self.emit.emitPUSHICONST(ast.value, o['frame']), IntType()
+        return self.emit.emitPUSHICONST(ctx.value,o.frame),IntType()
+
+    def visitFloatLiteral(self, ast, o):
+        return self.emit.emitPUSHFCONST(str(ctx.value),o.frame),FloatType()
+
+    def visitStringLiteral(self, ast, o):
+        return self.emit.emitPUSHCONST(ast.value,StringType(),o.frame),StringType()
+
+    def visitBoolLiteral(self, ast, o):
+        if ast.value:
+            return self.emit.emitPUSHICONST(1,o.frame),IntType()
+        return self.emit.emitPUSHICONST(0,o.frame),IntType()
+
+    def visitArrayLiteral(self, ast, o):
+        pass
+
+    def visitStructLiteral(self, ast, o):
+        pass
+
+    def visitNilLiteral(self, ast, o):
+        pass
+
 
     
