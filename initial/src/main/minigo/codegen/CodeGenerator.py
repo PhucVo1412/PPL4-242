@@ -83,7 +83,11 @@ class CodeGenerator(BaseVisitor,Utils):
     def visitParamDecl(self,ast, o):
         # parName: str
         # parType: Type
-        pass
+        frame = o['frame']
+        index = frame.getNewIndex()
+        o['env'][0].append(Symbol(ast.parName, ast.parType, Index(index)))
+        self.emit.printout(self.emit.emitVAR(index, ast.parName, ast.parType, frame.getStartLabel(), frame.getEndLabel(), frame))  
+
 
     def visitVarDecl(self, ast, o):
         # varName : str
@@ -179,26 +183,38 @@ class CodeGenerator(BaseVisitor,Utils):
     def visitAssign(self, ast, o):
         # lhs: LHS
         # rhs: Expr 
-        pass
+        o['isLeft'] = False
+        code2,typ2 = self.visit(ast.rhs,o)
+
+        o['isLeft'] = True
+        code1,typ1 = self.visit(ast.lhs,o)
+    
+        code = code1 + code2
+        self.emit.printout(code)
+
+
     
     def visitIf(self, ast, o):
         #  expr:Expr
         # thenStmt:Stmt
         # elseStmt:Stmt # None if there is no else
-
-
         code,typ = self.visit(ast.expr,o)
         self.emit.printout(code)
+
         Label0 = o.frame.getNewLabel()
         if ast.elseStmt:
             Label1 = o.frame.getNewLabel()
 
         code = self.emit.emitIFFALSE(Label0,o.frame)
         self.emit.printout(code)
+
         self.visit(ast.thenStmt,o)
+
         if ast.elseStmt:    
             code = self.emit.emitGOTO(Label1,o.frame)
+
         self.emit.emitLABEL(Label0,o.frame)
+
         if ast.elseStmt:
             self.visit(self.elseStmt,o.frame)
 
@@ -209,31 +225,55 @@ class CodeGenerator(BaseVisitor,Utils):
     def visitForBasic(self, ast, o):
         # cond:Expr
         # loop:Block
-        o.frame.enterLoop()
-        ConLabel = o.frame.getContinueLabel()
-        BreakLabel = o.frame.getBreakLable()
+        o['frame'].enterLoop()
+        ConLabel = o['frame'].getContinueLabel()
+        BreakLabel = o['frame'].getBreakLable()
+
         code = self.emit.emitLABEL(ConLabel)
         self.emit.printout(code)
+
         code,typ = self.visit(ast.cond)
         self.emit.printout(code)
-        self.visit(ast.loop,o.frame)
-        code = self.emit.emitGOTO(ConLabel,o.frame)
+
+        code = self.emit.emitIFFALSE(BreakLabel,o['frame'])
+
+        self.visit(ast.loop,o['frame'])
+
+        code = self.emit.emitGOTO(ConLabel,o['frame'])
         self.emit.printout(code)
+
         self.emit.emitLABEL(BreakLabel)
-        o.frame.exitLoop()
+        o['frame'].exitLoop()
 
     def visitForStep(self, ast, o):
         # init:Stmt
         # cond:Expr
         # upda:Assign
         # loop:Block
-        pass
+        o['frame'].enterLoop()
+
+        ContinueLabel = o['frame'].getContinueLabel()
+        BreakLabel = o['frame'].getBreakLabel()
+
+        self.visit(ast.init,o)
+
+        self.emit.printout(self.emit.emitLABEL(ContinueLabel,o['frame']))
+        self.visit(ast.cond,o)
+        self.emit.printout(self.emit.emitIFFALSE(BreakLabel,o['frame']))
+
+        self.visit(ast.loop,o)
+        self.visit(ast.upda,o)
+        self.emit.printout(self.emit.emitGOTO(ContinueLabel, o['frame']))
+
+        self.emit.printout(self.emit.emitLABEL(BreakLabel,o['frame']))
+
+        o['frame'].exitLoop()
 
     def visitBreak(self, ast, o):
-        pass
+        self.emit.printout(self.emit.emitGOTO(o['frame'].getBreakLabel(), o['frame']))
 
     def visitContinue(self, ast, o):
-        pass
+        self.emit.printout(self.emit.emitGOTO(o['frame'].getContinueLabel(), o['frame']))
 
     def visitReturn(self, ast, o):
         #expr:Expr 
@@ -289,11 +329,21 @@ class CodeGenerator(BaseVisitor,Utils):
             code += self.emit.emitMOD(ast.op, leftType, o.frame)
         elif op in [">","<","==",">=","<="]:
             code += self.emit.emitREOP(ast.op, leftType, o.frame)
+        return code,typ
         
     def visitUnaryOp(self, ast, o):
         # op:str
         # body:Expr
-        pass
+        
+        code1,typ = self.visit(ast.body,o)
+        code = ""
+        if ast.op == '-':
+            code += self.emit.emitPUSHICONST(0,o.frame)
+            code += code1
+            code += self.emit.emitADDOP(ast.op,typ, o.frame )
+        elif ast.op == '!':
+            code += self.emit.emitNOT(typ, o.frame)
+        return code,typ
 
     def visitFuncCall(self, ast, o):
         # funName:str
