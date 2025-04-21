@@ -72,63 +72,161 @@ class CodeGenerator(BaseVisitor,Utils):
         frame.exitScope()  
 
     def visitProgram(self, ast, c):
-        pass
+        env ={}
+        env['env'] = [c]
+        self.emit.printout(self.emit.emitPROLOG(self.className, "java.lang.Object"))
+        env = reduce(lambda a,x: self.visit(x,a), ast.decl, env)
+        self.emitObjectInit()
+        self.emit.printout(self.emit.emitEPILOG())
+        return env
 
     def visitParamDecl(self,ast, o):
+        # parName: str
+        # parType: Type
         pass
 
     def visitVarDecl(self, ast, o):
-        pass
+        # varName : str
+        # varType : Type # None if there is no type
+        # varInit : Expr # None if there is no initialization
+
+        if 'frame' not in o: # global var
+            o['env'][0].append(Symbol(ast.varName, ast.varType, CName(self.className)))
+            self.emit.printout(self.emit.emitATTRIBUTE(ast.varName, ast.varType, True, False, str(ast.varInit.value) if ast.varInit else None))
+        else:
+            frame = o['frame']
+            index = frame.getNewIndex()
+            o['env'][0].append(Symbol(ast.varName, ast.varType, Index(index)))
+            self.emit.printout(self.emit.emitVAR(index, ast.varName, ast.varType, frame.getStartLabel(), frame.getEndLabel(), frame))  
+            if ast.varInit:
+                self.emit.printout(self.emit.emitPUSHICONST(ast.varInit.value, frame))
+                self.emit.printout(self.emit.emitWRITEVAR(ast.varName, ast.varType, index,  frame))
+        return o
+
     
     def visitConstDecl(self, ast, o):
-        pass
+        # conName : str
+        # conType : Type # None if there is no type 
+        # iniExpr : Expr
+        if 'frame' not in o: # global var
+            o['env'][0].append(Symbol(ast.conName, ast.conType, CName(self.className)))
+            self.emit.printout(self.emit.emitATTRIBUTE(ast.conName, ast.conType, True, True, str(ast.iniExpr.value) if ast.iniExpr else None))
+        else:
+            frame = o['frame']
+            index = frame.getNewIndex()
+            o['env'][0].append(Symbol(ast.conName, ast.conType, Index(index)))
+            self.emit.printout(self.emit.emitVAR(index, ast.conName, ast.conType, frame.getStartLabel(), frame.getEndLabel(), frame))  
+            if ast.iniExpr:
+                self.emit.printout(self.emit.emitPUSHICONST(ast.iniExpr.value, frame))
+                self.emit.printout(self.emit.emitWRITEVAR(ast.conName, ast.conType, index,  frame))
+        return o
 
     def visitFuncDecl(self, ast, o):
+        # name: str
+        # params: List[ParamDecl]
+        # retType: Type # VoidType if there is no return type
+        # body: Block
         pass
     
     def visitMethodDecl(self, ast, o):
+        # receiver: str
+        # recType: Type 
+        # fun: FuncDecl
         pass
     
     def visitPrototype(self, ast, o):
+        # name: str
+        # params:List[Type]
+        # retType: Type # VoidType if there is no return type
+
         pass    
 
     def visitIntType(self, ast, o):
         pass 
 
     def visitFloatType(self, ast, o):
-        pass
+        return ast
 
     def visitBoolType(self, ast, o):
-        pass
+        return ast
 
     def visitStringType(self, ast, o):
-        pass
+        return ast
 
     def visitVoidType(self, ast, o):
-        pass
+        return ast
 
     def visitArrayType(self, ast, o):
-        pass
+        return ast
     
     def visitStructType(self, ast, o):
-        pass
+        return ast
 
     def visitInterfaceType(self, ast, o):
-        pass
+        return ast
 
     def visitBlock(self, ast, o):
-        pass
+        #member:List[BlockMember]
+        env = o.copy()
+        env['env'] = [[]] + env['env']
+        env['frame'].enterScope(False)
+        self.emit.printout(self.emit.emitLABEL(env['frame'].getStartLabel(), env['frame']))
+        env = reduce(lambda acc,e: self.visit(e,acc),ast.member,env)
+        self.emit.printout(self.emit.emitLABEL(env['frame'].getEndLabel(), env['frame']))
+        env['frame'].exitScope()
+        return o
 
     def visitAssign(self, ast, o):
+        # lhs: LHS
+        # rhs: Expr 
         pass
     
     def visitIf(self, ast, o):
-        pass
+        #  expr:Expr
+        # thenStmt:Stmt
+        # elseStmt:Stmt # None if there is no else
+
+
+        code,typ = self.visit(ast.expr,o)
+        self.emit.printout(code)
+        Label0 = o.frame.getNewLabel()
+        if ast.elseStmt:
+            Label1 = o.frame.getNewLabel()
+
+        code = self.emit.emitIFFALSE(Label0,o.frame)
+        self.emit.printout(code)
+        self.visit(ast.thenStmt,o)
+        if ast.elseStmt:    
+            code = self.emit.emitGOTO(Label1,o.frame)
+        self.emit.emitLABEL(Label0,o.frame)
+        if ast.elseStmt:
+            self.visit(self.elseStmt,o.frame)
+
+        self.emit.emitLABEL(Label1,o.frame)
+
+
 
     def visitForBasic(self, ast, o):
-        pass
+        # cond:Expr
+        # loop:Block
+        o.frame.enterLoop()
+        ConLabel = o.frame.getContinueLabel()
+        BreakLabel = o.frame.getBreakLable()
+        code = self.emit.emitLABEL(ConLabel)
+        self.emit.printout(code)
+        code,typ = self.visit(ast.cond)
+        self.emit.printout(code)
+        self.visit(ast.loop,o.frame)
+        code = self.emit.emitGOTO(ConLabel,o.frame)
+        self.emit.printout(code)
+        self.emit.emitLABEL(BreakLabel)
+        o.frame.exitLoop()
 
     def visitForStep(self, ast, o):
+        # init:Stmt
+        # cond:Expr
+        # upda:Assign
+        # loop:Block
         pass
 
     def visitBreak(self, ast, o):
@@ -138,10 +236,12 @@ class CodeGenerator(BaseVisitor,Utils):
         pass
 
     def visitReturn(self, ast, o):
+        #expr:Expr 
         pass
 
     def visitId(self, ast, o):
-        found = next(filter(lambda x: x.name == ast.name, o.sym), None)
+        #name : str
+        found = next(filter(lambda x: x.name == ast.name, o['env']), None)
 
         if isinstance(found.value, Index):
             code = self.emit.emitREADVAR(
@@ -162,21 +262,54 @@ class CodeGenerator(BaseVisitor,Utils):
 
 
     def visitArrayCell(self, ast, o):
+        # arr:Expr
+        # idx:List[Expr]
         pass
 
     def visitFieldAccess(self, ast, o):
+        # receiver:Expr
+        # field:str
         pass
 
     def visitBinaryOp(self, ast, o):
-        pass
+        # op:str
+        # left:Expr
+        # right:Expr
+        leftCode, leftType = self.visit(ast.left, o)
+        rightCode, rightType = self.visit(ast.right, o)
+        code = leftCode + rightCode
+        typ = leftType
+        op = ast.op
+
+        if op in ['+','-']:
+            code += self.emit.emitADDOP(ast.op, leftType, o.frame)
+        elif op in ['*','/']:   
+            code += self.emit.emitMULOP(ast.op, leftType, o.frame)
+        elif op == "%":
+            code += self.emit.emitMOD(ast.op, leftType, o.frame)
+        elif op in [">","<","==",">=","<="]:
+            code += self.emit.emitREOP(ast.op, leftType, o.frame)
         
     def visitUnaryOp(self, ast, o):
+        # op:str
+        # body:Expr
         pass
 
     def visitFuncCall(self, ast, o):
-        pass
+        # funName:str
+        # args:List[Expr] 
+        sym = next(filter(lambda x: x.name == ast.funName, o['env'][-1]),None)
+        env = o.copy()
+        env['isLeft'] = False
+        [self.emit.printout(self.visit(x, env)[0]) for x in ast.args]
+        self.emit.printout(self.emit.emitINVOKESTATIC(f"{sym.value.value}/{ast.funName}",sym.mtype, o['frame']))
+        return o
 
     def visitMethCall(self, ast, o):
+        # receiver: Expr
+        # metName: str
+        # args:List[Expr]
+
         pass
 
     def visitIntLiteral(self, ast, o):
@@ -194,9 +327,14 @@ class CodeGenerator(BaseVisitor,Utils):
         return self.emit.emitPUSHICONST(0,o.frame),IntType()
 
     def visitArrayLiteral(self, ast, o):
+        # dimens:List[Expr]
+        # eleType: Type
+        # value: NestedList
         pass
 
     def visitStructLiteral(self, ast, o):
+        #name:str
+        #elements: List[Tuple[str,Expr]]
         pass
 
     def visitNilLiteral(self, ast, o):

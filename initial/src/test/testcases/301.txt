@@ -1,0 +1,3 @@
+class abc { }
+        class def {}
+        class abc{}
