@@ -130,7 +130,31 @@ class CodeGenerator(BaseVisitor,Utils):
         # params: List[ParamDecl]
         # retType: Type # VoidType if there is no return type
         # body: Block
-        pass
+        
+        frame = Frame(ast.name, ast.retType)
+        isMain = ast.name == "main"
+        if isMain:
+            mtype = MType([ArrayType([None],StringType())], VoidType())
+        else:
+            mtype = MType(list(map(lambda x: x.parType, ast.params)), ast.retType)
+        o['env'][0].append(Symbol(ast.name, mtype, CName(self.className)))
+        env = o.copy()
+        env['frame'] = frame
+        self.emit.printout(self.emit.emitMETHOD(ast.name, mtype,True, frame))
+        frame.enterScope(True)
+        self.emit.printout(self.emit.emitLABEL(frame.getStartLabel(), frame))
+        env['env'] = [[]] + env['env']
+        if isMain:
+            self.emit.printout(self.emit.emitVAR(frame.getNewIndex(), "args", ArrayType([None],StringType()), frame.getStartLabel(), frame.getEndLabel(), frame))
+        else:
+            env = reduce(lambda acc,e: self.visit(e,acc),ast.params,env)
+        self.visit(ast.body,env)
+        self.emit.printout(self.emit.emitLABEL(frame.getEndLabel(), frame))
+        if type(ast.retType) is VoidType:
+            self.emit.printout(self.emit.emitRETURN(VoidType(), frame)) 
+        self.emit.printout(self.emit.emitENDMETHOD(frame))
+        frame.exitScope()
+        return o
     
     def visitMethodDecl(self, ast, o):
         # receiver: str
@@ -381,6 +405,7 @@ class CodeGenerator(BaseVisitor,Utils):
         # eleType: Type
         # value: NestedList
         pass
+
 
     def visitStructLiteral(self, ast, o):
         #name:str
