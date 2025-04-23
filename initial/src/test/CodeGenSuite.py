@@ -29,6 +29,7 @@ class CheckCodeGenSuite(unittest.TestCase):
         expect = "5000"
         self.assertTrue(TestCodeGen.test(input,expect,506))
 
+
     def test_507(self):
         """
         func main() {
