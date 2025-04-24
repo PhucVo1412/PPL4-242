@@ -1,17 +1,10 @@
-'''
- *   @author Nguyen Hua Phung
- *   @version 1.0
- *   23/10/2015
- *   This file provides a simple version of code generator
- *
-'''
-from Utils import *
-from StaticCheck import *
-from StaticError import *
-from Emitter import Emitter
-from Frame import Frame
-from abc import ABC, abstractmethod
+from Emitter import *
 from functools import reduce
+
+from Frame import Frame
+from abc import ABC
+from Visitor import *
+from AST import *
 
 
 class Val(ABC):
@@ -258,8 +251,6 @@ class CodeGenerator(BaseVisitor,Utils):
         return ast
 
     def visitArrayType(self, ast, o):
-        # arr:Expr
-        # idx:List[Expr]
         return ast
     
     def visitStructType(self, ast, o):
@@ -427,34 +418,34 @@ class CodeGenerator(BaseVisitor,Utils):
                 return code, found.mtype
 
 
-    # def visitArrayCell(self, ast, o) :
-    # #  arr:Expr
-    # # idx:List[Expr]
-    #     newO = o.copy()
-    #     newO['isLeft'] = False 
-    #     codeGen, arrType = self.visit(ast.arr, o)
+    def visitArrayCell(self, ast, o) :
+    #  arr:Expr
+    # idx:List[Expr]
+        newO = o.copy()
+        newO['isLeft'] = False 
+        codeGen, arrType = self.visit(ast.arr, o)
 
-    #     for idx, item in enumerate(ast.idx):
-    #         codeGen += self.visit(item,o)
-    #         if idx != len(ast.idx) - 1:
-    #             codeGen += self.emit.emitALOAD(arrType, o['frame'])
+        for idx, item in enumerate(ast.idx):
+            codeGen += self.visit()
+            if idx != len(ast.idx) - 1:
+                codeGen += self.emit.emitALOAD(arrType, o['frame'])
 
-    #     retType = None
-    #     ## trả về một kiểu nào đó không phải array
-    #     if len(arrType.dimens) == len(ast.idx):
-    #         retType = arrType
-    #         if not o.get('isLeft'):
-    #             codeGen += self.emit.emit
-    #         else:
-    #             self.arrayCell = 1 ## TODO
-    #     ## trả về một array
-    #     else:
-    #         retType = ast
-    #         if not o.get('isLeft'):
-    #             codeGen += 1## TODO
-    #         else:
-    #             self.arrayCell = 1##1 TODO
-    #     return 1## TODO
+        retType = None
+        ## trả về một kiểu nào đó không phải array
+        if len(arrType.dimens) == len(ast.idx):
+            retType = arrType
+            if not o.get('isLeft'):
+                codeGen += self.emit.emit
+            else:
+                self.arrayCell = 1 ## TODO
+        ## trả về một array
+        else:
+            retType = ast
+            if not o.get('isLeft'):
+                codeGen += 1## TODO
+            else:
+                self.arrayCell = 1##1 TODO
+        return 1## TODO
 
     def visitFieldAccess(self, ast, o):
         # receiver:Expr

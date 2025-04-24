@@ -7,7 +7,7 @@ Label0:
 .var 0 is args [Ljava/lang/String; from Label0 to Label1
 Label2:
 	ldc 1.0
-	invokestatic io/putFloat(<class 'AST.FloatType'>)V
+	invokestatic io/putFloat(F)V
 Label3:
 Label1:
 	return

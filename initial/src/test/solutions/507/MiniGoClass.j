@@ -6,7 +6,7 @@
 Label0:
 .var 0 is args [Ljava/lang/String; from Label0 to Label1
 Label2:
-	iconst_1
+	iconst_5
 	invokestatic io/putInt(I)V
 Label3:
 Label1:

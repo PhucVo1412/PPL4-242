@@ -12,7 +12,7 @@ class CheckCodeGenSuite(unittest.TestCase):
         input = """func main() {var a int = 20;  putInt(a);};"""
         expect = "20"
         self.assertTrue(TestCodeGen.test(input,expect,502))
-    def test_gllobal_var(self):
+    def test_global_var(self):
         input = """var a int = 10; func main() { putInt(a);};"""
         expect = "10"
         self.assertTrue(TestCodeGen.test(input,expect,503))
@@ -33,11 +33,11 @@ class CheckCodeGenSuite(unittest.TestCase):
     def test_507(self):
         """
         func main() {
-            putInt(1)
+            putInt(5)
         }
         """
-        input = Program([FuncDecl("main",[],VoidType(),Block([FuncCall("putInt",[IntLiteral(1)])]))])
-        self.assertTrue(TestCodeGen.test(input, "1", 507))    
+        input = Program([FuncDecl("main",[],VoidType(),Block([FuncCall("putInt",[IntLiteral(5)])]))])
+        self.assertTrue(TestCodeGen.test(input, "5", 507))    
 
     def test_508(self):
         """
@@ -47,3 +47,23 @@ class CheckCodeGenSuite(unittest.TestCase):
         """
         input = Program([FuncDecl("main",[],VoidType(),Block([FuncCall("putFloat",[FloatLiteral(1.0)])]))])
         self.assertTrue(TestCodeGen.test(input, "1.0", 508))
+
+    # def test_509(self):
+    #     input = """
+    #     func main() {
+    #         var a [1] int ;
+    #         a[0] := 1
+    #         putInt(a[0]);
+    #     }
+    #     """
+    #     self.assertTrue(TestCodeGen.test(input,"1",509))
+
+    # def test_510(self):
+    #     input = """
+    #     func main() {
+    #         var a [1][1][1] int  = [1][1][1] int {{{0}}};
+    #         a[0][0][0] := 1
+    #         putInt(a[0][0][0]);
+    #     }
+    #     """
+    #     self.assertTrue(TestCodeGen.test(input,"1",510))
