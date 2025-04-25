@@ -1,6 +1,6 @@
 from Utils import *
-from StaticCheck import *
-from StaticError import *
+# from StaticCheck import *
+# from StaticError import *
 import CodeGenerator as cgen
 from MachineCode import JasminCode
 
@@ -16,12 +16,14 @@ class Emitter():
         typeIn = type(inType)
         if typeIn is IntType:
             return "I"
+        elif typeIn is FloatType:
+            return "F"
         elif typeIn is StringType:
             return "Ljava/lang/String;"
         elif typeIn is VoidType:
             return "V"
         elif typeIn is ArrayType:
-            return "[" + self.getJVMType(inType.eleType)
+            return "".join(["[" for x in range(len(inType.dimens))]) + self.getJVMType(inType.eleType)
         elif typeIn is MType:
             return "(" + "".join(list(map(lambda x: self.getJVMType(x), inType.partype))) + ")" + self.getJVMType(inType.rettype)
         elif typeIn is cgen.ClassType:
