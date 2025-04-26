@@ -1,7 +1,17 @@
 
+        func fvoid() {putStringLn("VoTien");}
+
+        var global = fint()
         func main() {
-            var a [1][1][1] int  = [1][1][1] int {{{0}}};
-            a[0][0][0] := 1
-            putInt(a[0][0][0]);
-        }
+            fvoid();
+            putFloatLn(global + 2.0)
+
+            var local = "a";
+            putBoolLn(local <= "b")
+            local += "c"
+            putStringLn(local)
+
+        };
+
+        func fint() int {return 1;}
         

@@ -637,6 +637,15 @@ class Emitter():
         file.write(''.join(self.buff))
         file.close()
 
+
+    def emitNEWARRAY(self, in_, frame):
+        if type(in_) is IntType:
+          return self.jvm.emitNEWARRAY("int") 
+        return
+    
+    def emitANEWARRAY(self, in_, frame):
+        return self.jvm.emitANEWARRAY("int")   
+
     ''' print out the code to screen
     *   @param in the code to be printed out
     '''

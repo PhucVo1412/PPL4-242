@@ -1,9 +1,5 @@
 '''
- *   @author Nguyen Hua Phung
- *   @version 1.0
- *   23/10/2015
- *   This file provides a simple version of code generator
- *
+2252650 
 '''
 from Utils import *
 from StaticCheck import *
@@ -294,14 +290,14 @@ class CodeGenerator(BaseVisitor,Utils):
         # lhs: LHS
         # rhs: Expr 
         if type(ast.lhs) is Id and not next(filter(lambda x: x.name == ast.lhs.name, [sym for env in o['env'] for sym in env]), None) :
-            return self.visit(VarDecl(lhs.name,None,rhs),o)
+            return self.visit(VarDecl(ast.lhs.name,None,ast.rhs),o)
 
-        o['isLeft'] = False
+        
         code2,typ2 = self.visit(ast.rhs,o)
-
         o['isLeft'] = True
-        code1,typ1 = self.visit(ast.lhs,o)
-    
+        code1,typ1 = self.visit(ast.lhs,o)  
+        o['isLeft'] = False
+
         code = code2
         if type(typ1) is FloatType and type(typ2) is IntType:
             code += self.emit.emitI2F(o['frame'])
@@ -338,6 +334,7 @@ class CodeGenerator(BaseVisitor,Utils):
             self.visit(self.elseStmt,o['frame'])
 
         self.emit.emitLABEL(Label1,o['frame'])
+        return o
 
 
 
@@ -351,7 +348,7 @@ class CodeGenerator(BaseVisitor,Utils):
         code = self.emit.emitLABEL(ConLabel)
         self.emit.printout(code)
 
-        code,typ = self.visit(ast.cond)
+        code,typ = self.visit(ast.cond,o)
         self.emit.printout(code)
 
         code = self.emit.emitIFFALSE(BreakLabel,o['frame'])
@@ -363,6 +360,7 @@ class CodeGenerator(BaseVisitor,Utils):
 
         self.emit.emitLABEL(BreakLabel)
         o['frame'].exitLoop()
+        return o
 
     def visitForStep(self, ast, o):
         # init:Stmt
@@ -387,12 +385,15 @@ class CodeGenerator(BaseVisitor,Utils):
         self.emit.printout(self.emit.emitLABEL(BreakLabel,o['frame']))
 
         o['frame'].exitLoop()
+        return o
 
     def visitBreak(self, ast, o):
         self.emit.printout(self.emit.emitGOTO(o['frame'].getBreakLabel(), o['frame']))
+        return o
 
     def visitContinue(self, ast, o):
         self.emit.printout(self.emit.emitGOTO(o['frame'].getContinueLabel(), o['frame']))
+        return o
 
     def visitReturn(self, ast, o):
         #expr:Expr 
@@ -427,34 +428,33 @@ class CodeGenerator(BaseVisitor,Utils):
                 return code, found.mtype
 
 
-    # def visitArrayCell(self, ast, o) :
-    # #  arr:Expr
-    # # idx:List[Expr]
-    #     newO = o.copy()
-    #     newO['isLeft'] = False 
-    #     codeGen, arrType = self.visit(ast.arr, o)
+    def visitArrayCell(self, ast: ArrayCell, o: dict) -> tuple[str, Type]:
+        newO = o.copy()
+        newO['isLeft'] = False ## kiểm tra xem đang bên nào
+        code, typ = self.visit(ast.arr, o) 
 
-    #     for idx, item in enumerate(ast.idx):
-    #         codeGen += self.visit(item,o)
-    #         if idx != len(ast.idx) - 1:
-    #             codeGen += self.emit.emitALOAD(arrType, o['frame'])
+        for idx, item in enumerate(ast.idx):
+            codeGen += self.visit(item,o)[0]
+            if idx != len(ast.idx) - 1:
+                codeGen += self.emit.emitALOAD(arrType, o['frame'])
 
-    #     retType = None
-    #     ## trả về một kiểu nào đó không phải array
-    #     if len(arrType.dimens) == len(ast.idx):
-    #         retType = arrType
-    #         if not o.get('isLeft'):
-    #             codeGen += self.emit.emit
-    #         else:
-    #             self.arrayCell = 1 ## TODO
-    #     ## trả về một array
-    #     else:
-    #         retType = ast
-    #         if not o.get('isLeft'):
-    #             codeGen += 1## TODO
-    #         else:
-    #             self.arrayCell = 1##1 TODO
-    #     return 1## TODO
+        # retType = None
+        # ## trả về một kiểu nào đó không phải array
+        # if len(arrType.dimens) == len(ast.idx):
+        #     retType = ## TODO
+        #     if not o.get('isLeft'):
+        #         codeGen += ## TODO
+        #     else:
+        #         self.arrayCell = ## TODO
+        # ## trả về một array
+        # else:
+        #     retType = ## TODO
+        #     if not o.get('isLeft'):
+        #         codeGen += ## TODO
+        #     else:
+        #         self.arrayCell = ## TODO
+
+        return code,typ
 
     def visitFieldAccess(self, ast, o):
         # receiver:Expr
@@ -531,8 +531,37 @@ class CodeGenerator(BaseVisitor,Utils):
         # dimens:List[Expr]
         # eleType: Type
         # value: NestedList
-        pass
+        def nested2recursive(dat: Union[Literal, list['NestedList']], o: dict) -> tuple[str, Type]:
+            if not isinstance(dat,list): 
+                return ## TODO
+            
+            frame = o['frame']
+            codeGen = self.emit.emitPUSHICONST(len(ast.dimens), o['frame'] )
+            # trường hợp mảng một chiều   
+            if not isinstance(dat[0],list):
+                codeGen += self.emit.emitNEWARRAY(ast.eleType,o['frame'])
+                _ , type_element_array = self.visit(dat[0], o)
+                
+                for idx, item in enumerate(dat):
+                    codeGen += self.emit.emitDUP(o['frame'])
+                    codeGen += self.emit.emitPUSHICONST(idx,o['frame'])
+                    codeGen += self.visit(item, o)[0] 
+                    codeGen += self.emit.emitASTORE(type_element_array, o['frame'])
+                return codeGen, ArrayType(ast.dimens,ast.eleType)
+            
+            # trường hợp mảng 2 chiều 
+            codeGen += self.emit.emitANEWARRAY(ast.eleType,o['frame'])
+            _, type_element_array = nested2recursive(dat[0], o)
+            for idx, item in enumerate(dat):
+                codeGen += self.emit.emitDUP(o['frame'])
+                codeGen += self.emit.emitPUSHICONST(idx,o['frame'])
+                codeGen += nested2recursive(item, o)
+                codeGen += self.emit.emitASTORE(type_element_array, o['frame'])
+            return  codeGen, ArrayType(ast.dimens,ast.eleType)
+        
+        return nested2recursive(ast.value, o) 
 
+ 
 
     def visitStructLiteral(self, ast, o):
         #name:str
