@@ -146,9 +146,9 @@ class CodeGenerator(BaseVisitor,Utils):
             elif type(typ) is FloatType:
                 ast.varInit = FloatLiteral(0.0) 
             elif type(typ) is BoolType:
-                ast.varInit = BoolLiteral(False)
+                ast.varInit = BoolLiteral("false")
             elif type(typ) is StringType:
-                ast.varInit = StringLiteral("")
+                ast.varInit = StringLiteral("\"\"")
 
         #Type inferred
         env = o.copy()
@@ -496,15 +496,21 @@ class CodeGenerator(BaseVisitor,Utils):
         return code,typ
 
     def visitFuncCall(self, ast, o):
-        # funName:str
-        # args:List[Expr] 
-        sym = next(filter(lambda x: x.name == ast.funName, o['env'][-1]),None)
-        env = o.copy()
-        env['isLeft'] = False
+        sym = next(filter(lambda x: x.name == ast.funName, self.list_function),None)
+        if o.get('stmt'):
+            o["stmt"] = False
+            #TODO: dùng emittter sinh mã cho khúc lấy params trong ast.args, nhớ dùng hàm visit, visit qa từng args. Dùng list comprehension or vòng lặp: [..code..]  
+             
+              
+            self.emit.printout(self.emit.emitINVOKESTATIC(f"{sym.value.value}/{ast.funName}",sym.mtype, o['frame']))
+            
 
-        [self.emit.printout(self.visit(x, env)[0]) for x in ast.args]
-        self.emit.printout(self.emit.emitINVOKESTATIC(f"{sym.value.value}/{ast.funName}",sym.mtype, o['frame']))
-        return o
+            return o 
+        output = "".join([str(self.visit(x, o)[0]) for x in ast.args])
+        output += "TODO code" ## TODO: Đã đặt đủ tham số vào stack rồi thì sinh mã gọi hàm thôi
+
+        # Vì funcall ở chỗ này là 1 biểu thức nên mình cần trả về giá trị kèm theo kiểu trả về luôn.
+        return output, sym.mtype.rettype
 
     def visitMethCall(self, ast, o):
         # receiver: Expr

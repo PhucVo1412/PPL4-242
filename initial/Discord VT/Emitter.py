@@ -587,7 +587,7 @@ class Emitter():
         elif type(in_) is VoidType:
             return self.jvm.emitRETURN()
 
-    ''' generate code that represents a label	
+    ''' generate code that represents a label   
     *   @param label the label
     *   @return code Label<label>:
     '''
@@ -597,7 +597,7 @@ class Emitter():
 
         return self.jvm.emitLABEL(label)
 
-    ''' generate code to jump to a label	
+    ''' generate code to jump to a label    
     *   @param label the label
     *   @return code goto Label<label>
     '''
@@ -636,6 +636,15 @@ class Emitter():
         file = open(self.filename, "w")
         file.write(''.join(self.buff))
         file.close()
+
+
+    def emitNEWARRAY(self, in_, frame):
+        if type(in_) is IntType:
+          return self.jvm.emitNEWARRAY("int") 
+        return
+    
+    def emitANEWARRAY(self, in_, frame):
+        return self.jvm.emitANEWARRAY("int")   
 
     ''' print out the code to screen
     *   @param in the code to be printed out
