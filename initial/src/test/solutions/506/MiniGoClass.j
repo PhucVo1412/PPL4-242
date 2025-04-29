@@ -30,8 +30,6 @@ Label1:
 .method public static <clinit>()V
 Label0:
 Label2:
-	sipush 5000
-	putstatic MiniGoClass/a I
 Label3:
 Label1:
 	return
