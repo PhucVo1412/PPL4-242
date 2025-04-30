@@ -1,18 +1,37 @@
 .source MiniGoClass.java
 .class public MiniGoClass
 .super java.lang.Object
-.field static a I
 
 .method public static main([Ljava/lang/String;)V
 Label0:
 .var 0 is args [Ljava/lang/String; from Label0 to Label1
 Label2:
-	getstatic MiniGoClass/a I
-	invokestatic io/putInt(I)V
+	iconst_1
+	ifgt Label4
+	iconst_1
+	goto Label5
+Label4:
+	iconst_0
+Label5:
+	invokestatic io/putBoolLn(Z)V
+	iconst_0
+	ifgt Label6
+	iconst_1
+	goto Label7
+Label6:
+	iconst_0
+Label7:
+	invokestatic io/putBoolLn(Z)V
+	iconst_1
+	ineg
+	invokestatic io/putIntLn(I)V
+	ldc 1.0
+	fneg
+	invokestatic io/putFloatLn(F)V
 Label3:
 Label1:
 	return
-.limit stack 1
+.limit stack 3
 .limit locals 1
 .end method
 
@@ -30,11 +49,9 @@ Label1:
 .method public static <clinit>()V
 Label0:
 Label2:
-	sipush 5000
-	putstatic MiniGoClass/a I
 Label3:
 Label1:
 	return
-.limit stack 1
+.limit stack 0
 .limit locals 0
 .end method

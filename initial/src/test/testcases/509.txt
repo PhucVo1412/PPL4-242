@@ -1,6 +1,6 @@
 
-        func foo(a int, c int) {
-            var b = a + c;
+        func foo(a int , c int) {
+            var b int = a + c;
             putInt(b);
         };
         func main() {

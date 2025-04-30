@@ -50,8 +50,8 @@ class CheckCodeGenSuite(unittest.TestCase):
 
     def test_509(self):
         input = """
-        func foo(a int, c int) {
-            var b = a + c;
+        func foo(a int , c int) {
+            var b int = a + c;
             putInt(b);
         };
         func main() {
@@ -61,121 +61,130 @@ class CheckCodeGenSuite(unittest.TestCase):
                 """
         self.assertTrue(TestCodeGen.test(input, "5", 509)) 
 
-#     def test_510(self):
-#         input = """
-#         func fvoid() {putStringLn("VoTien");}
+    def test_510(self):
+        input = """
+        func main() {
+            var a float = 3.0;
+            putFloat(1 + a)
+        }
+         """
+        self.assertTrue(TestCodeGen.test(input,"4.0",510)) 
 
-#         var global = fint()
-#         func main() {
-#             fvoid();
-#             putFloatLn(global + 2.0)
+    def test_511(self):
+        input = """
+        func fvoid() {putStringLn("VoTien");}
 
-#             var local = "a";
-#             putBoolLn(local <= "b")
-#             local += "c"
-#             putStringLn(local)
+        var global = fint()
+        func main() {
+            fvoid();
+            putFloatLn(global + 2.0)
 
-#         };
+            var local = "a";
+            putBoolLn(local <= "b")
+            local += "c"
+            putStringLn(local)
 
-#         func fint() int {return 1;}
-#         """
-#         self.assertTrue(TestCodeGen.test(input,"VoTien\n3.0\ntrue\nac\n",510)) 
+        };
 
-#     def test_511(self):
-#         input = """
-#         func foo() int {return foo1();}
-#         var a = foo() + foo1();
-#         func main() {
-#             putInt(a)
-#             a := foo()
-#             putInt(a)
-#         }
-#         func foo1() int {return 1;}
-#         """
-#         self.assertTrue(TestCodeGen.test(input, "21", 511))  
+         func fint() int {return 1;}
+         """
+        self.assertTrue(TestCodeGen.test(input,"VoTien\n3.0\ntrue\nac\n",511)) 
+
+    def test_512(self):
+        input = """
+        func foo() int {return foo1();}
+        var a = foo() + foo1();
+        func main() {
+            putInt(a)
+            a := foo()
+            putInt(a)
+        }
+        func foo1() int {return 1;}
+        """
+        self.assertTrue(TestCodeGen.test(input, "21", 512))  
     
-#     def test_512(self):
-#         input ="""
-#         func main() {
-#             putFloat(1.0)
-#         }
-#         """
-#         #  Program([FuncDecl("main",[],VoidType(),Block([FuncCall("putFloat",[FloatLiteral(1.0)])]))])
-#         self.assertTrue(TestCodeGen.test(input, "1.0", 512))
+    def test_512(self):
+        input ="""
+        func main() {
+            putFloat(1.0)
+        }
+        """
+        #  Program([FuncDecl("main",[],VoidType(),Block([FuncCall("putFloat",[FloatLiteral(1.0)])]))])
+        self.assertTrue(TestCodeGen.test(input, "1.0", 512))
 
-#     def test_513(self):
-#         input = """
-#         func main() {
-#             putIntLn(5 % 2)
-#             putIntLn(2 % 5)
-#         }
-#         """
-#         self.assertTrue(TestCodeGen.test(input, "1\n2\n", 513))
+    def test_513(self):
+        input = """
+        func main() {
+            putIntLn(5 % 2)
+            putIntLn(2 % 5)
+        }
+        """
+        self.assertTrue(TestCodeGen.test(input, "1\n2\n", 513))
 
-#     def test_514(self):
-#         input = """
-#         func main() {
-#             putBoolLn(5.0 > 2.0)
-#             putBoolLn(5.0 < 2.0)
-#             putBoolLn(5.0 <= 5.0)
-#             putBoolLn(5.0 >= 5.0)
-#             putBoolLn(5.0 == 5.0)
-#             putBoolLn(5.0 != 5.0)
-#         }
-#         """
-#         self.assertTrue(TestCodeGen.test(input, "true\nfalse\ntrue\ntrue\ntrue\nfalse\n", 514))
+    def test_514(self):
+        input = """
+        func main() {
+            putBoolLn(5.0 > 2.0)
+            putBoolLn(5.0 < 2.0)
+            putBoolLn(5.0 <= 5.0)
+            putBoolLn(5.0 >= 5.0)
+            putBoolLn(5.0 == 5.0)
+            putBoolLn(5.0 != 5.0)
+        }
+        """
+        self.assertTrue(TestCodeGen.test(input, "true\nfalse\ntrue\ntrue\ntrue\nfalse\n", 514))
 
-#     def test_515(self):
-#         input = """
-#         func main() {
-#             putBoolLn("apple" > "banana")     // False
-#             putBoolLn("apple" < "banana")     // True
-#             putBoolLn("apple" <= "apple")     // True
-#             putBoolLn("banana" >= "apple")    // True
-#             putBoolLn("hello" == "hello")     // True
-#             putBoolLn("hello" != "hello")     // False
-#         }
-#         """
-#         self.assertTrue(TestCodeGen.test(input, "false\ntrue\ntrue\ntrue\ntrue\nfalse\n", 515))
+    def test_515(self):
+        input = """
+        func main() {
+            putBoolLn("apple" > "banana")     // False
+            putBoolLn("apple" < "banana")     // True
+            putBoolLn("apple" <= "apple")     // True
+            putBoolLn("banana" >= "apple")    // True
+            putBoolLn("hello" == "hello")     // True
+            putBoolLn("hello" != "hello")     // False
+        }
+        """
+        self.assertTrue(TestCodeGen.test(input, "false\ntrue\ntrue\ntrue\ntrue\nfalse\n", 515))
 
 
-#     def test_516(self):
-#         input = """
-# func main() {
-#     putBoolLn(! true)
-#     putBoolLn(! false)
-#     putIntLn(-1)
-#     putFloatLn(-1.0)
-# }
-#      """
-#         self.assertTrue(TestCodeGen.test(input, "false\ntrue\n-1\n-1.0\n", 516))
+    def test_516(self):
+        input = """
+        func main() {
+            putBoolLn(! true)
+            putBoolLn(! false)
+            putIntLn(-1)
+            putFloatLn(-1.0)
+        }
+     """
+        self.assertTrue(TestCodeGen.test(input, "false\ntrue\n-1\n-1.0\n", 516))
 
-#     def test_517(self):
-#         input = """
-#         func foo() int {return 1;}        
+    def test_517(self):
+        input = """
+        func foo() int {return 1;}        
 
-#         func main() {
-#             putInt(foo())
-#         }
-#             """
-#         self.assertTrue(TestCodeGen.test(input, "1", 517))
+        func main() {
+            putInt(foo())
+        }
+            """
+        self.assertTrue(TestCodeGen.test(input, "1", 517))
 
-#     def test_518(self):
-#         input = """
-#         func fooInt(a int) int {  return a; }
-#         func fooFloat(a float) float {  return a; }
-#         func fooString(a string) string { return a; }
-#         func fooBool(a boolean) boolean { return a; }
+    def test_518(self):
+        input = """
+        func fooInt(a int) int {  return a; }
+        func fooFloat(a float) float {  return a; }
+        func fooString(a string) string { return a; }
+        func fooBool(a boolean) boolean { return a; }
 
-#         func main() {
-#             putInt(fooInt(2));
-#             putFloat(fooFloat(1.5));
-#             putString(fooString("S"));
-#             putBool(fooBool(true));
-#         }
+        func main() {
+            putInt(fooInt(2));
+            putFloat(fooFloat(1.5));
+            putString(fooString("S"));
+            putBool(fooBool(true));
+        }
                 
-#                 """
-#         self.assertTrue(TestCodeGen.test(input, "21.5Strue", 518))
+                """
+        self.assertTrue(TestCodeGen.test(input, "21.5Strue", 518))
 
 #     def test_519(self):
 #         input = """

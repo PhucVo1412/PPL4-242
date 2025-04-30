@@ -1,7 +1,7 @@
 .source MiniGoClass.java
 .class public MiniGoClass
 .super java.lang.Object
-.field static a I = 10
+.field static a I
 
 .method public static main([Ljava/lang/String;)V
 Label0:

@@ -7,6 +7,8 @@ from MachineCode import JasminCode
 
 
 class Emitter():
+    END = "\n"
+    INDENT = "\t"
     def __init__(self, filename):
         self.filename = filename
         self.buff = list()
@@ -20,6 +22,8 @@ class Emitter():
             return "F"
         elif typeIn is StringType:
             return "Ljava/lang/String;"
+        elif typeIn is BoolType:
+            return "Z"
         elif typeIn is VoidType:
             return "V"
         elif typeIn is ArrayType:
@@ -39,6 +43,9 @@ class Emitter():
             return "java/lang/String"
         elif typeIn is VoidType:
             return "void"
+        elif typeIn is BoolType:
+            return "boolean"
+        
 
     def emitPUSHICONST(self, in_, frame):
         #in: Int or Sring
@@ -146,8 +153,10 @@ class Emitter():
         #... -> ..., value
         
         frame.push()
-        if type(inType) is IntType:
+        if type(inType) is IntType or type(inType) is BoolType:
             return self.jvm.emitILOAD(index)
+        elif type(inType) is FloatType:
+            return self.jvm.emitFLOAD(index)
         elif type(inType) is cgen.ArrayType or type(inType) is cgen.ClassType or type(inType) is StringType:
             return self.jvm.emitALOAD(index)
         else:
@@ -178,12 +187,14 @@ class Emitter():
         
         frame.pop()
 
-        if type(inType) is IntType:
+        if type(inType) is IntType or type(inType) is BoolType:
             return self.jvm.emitISTORE(index)
-        elif type(inType) is cgen.ArrayType or type(inType) is cgen.ClassType or type(inType) is StringType:
+        elif type(inType) is FloatType:
+            return self.jvm.emitFSTORE(index)
+        elif type(inType) in [cgen.ArrayType, cgen.ClassType, StringType]:
             return self.jvm.emitASTORE(index)
         else:
-            raise IllegalOperandException(name)
+            raise IllegalOperandException(f"Illegal type '{type(inType).__name__}' for variable '{name}' in emitWRITEVAR.")
 
     ''' generate the second instruction for array cell access
     *
@@ -316,12 +327,12 @@ class Emitter():
         label1 = frame.getNewLabel()
         label2 = frame.getNewLabel()
         result = list()
-        result.append(emitIFTRUE(label1, frame))
-        result.append(emitPUSHCONST("true", in_, frame))
-        result.append(emitGOTO(label2, frame))
-        result.append(emitLABEL(label1, frame))
-        result.append(emitPUSHCONST("false", in_, frame))
-        result.append(emitLABEL(label2, frame))
+        result.append(self.emitIFTRUE(str(label1), frame))
+        result.append(self.emitPUSHICONST(1, frame))
+        result.append(self.emitGOTO(str(label2), frame))
+        result.append(self.emitLABEL(str(label1), frame))
+        result.append(self.emitPUSHICONST(0,  frame))
+        result.append(self.emitLABEL(str(label2), frame))
         return ''.join(result)
 
     '''
@@ -381,7 +392,9 @@ class Emitter():
         #frame: Frame
 
         frame.pop()
+        return Emitter.INDENT + "irem" + Emitter.END
         return self.jvm.emitIREM()
+
 
     '''
     *   generate iand
@@ -414,24 +427,56 @@ class Emitter():
 
         frame.pop()
         frame.pop()
-        if op == ">":
-            result.append(self.jvm.emitIFICMPLE(labelF))
-        elif op == ">=":
-            result.append(self.jvm.emitIFICMPLT(labelF))
-        elif op == "<":
-            result.append(self.jvm.emitIFICMPGE(labelF))
-        elif op == "<=":
-            result.append(self.jvm.emitIFICMPGT(labelF))
-        elif op == "!=":
-            result.append(self.jvm.emitIFICMPEQ(labelF))
-        elif op == "==":
-            result.append(self.jvm.emitIFICMPNE(labelF))
+        if type(in_) is IntType:
+            if op == ">":
+                result.append(self.jvm.emitIFICMPLE(labelF))
+            elif op == ">=":
+                result.append(self.jvm.emitIFICMPLT(labelF))
+            elif op == "<":
+                result.append(self.jvm.emitIFICMPGE(labelF))
+            elif op == "<=":
+                result.append(self.jvm.emitIFICMPGT(labelF))
+            elif op == "!=":
+                result.append(self.jvm.emitIFICMPEQ(labelF))
+            elif op == "==":
+                result.append(self.jvm.emitIFICMPNE(labelF))
+        elif type(in_) is FloatType:
+            result.append(self.jvm.emitFCMPL())
+            if op == ">":
+                result.append(self.jvm.emitIFLE(labelF))
+            elif op == ">=":
+                result.append(self.jvm.emitIFLT(labelF))
+            elif op == "<":
+                result.append(self.jvm.emitIFGE(labelF))
+            elif op == "<=":
+                result.append(self.jvm.emitIFGT(labelF))
+            elif op == "!=":
+                result.append(self.jvm.emitIFEQ(labelF))
+            elif op == "==":
+                result.append(self.jvm.emitIFNE(labelF))
+        elif type(in_) is StringType:
+            result.append(self.jvm.emitINVOKEVIRTUAL("java/lang/String/compareTo", "(Ljava/lang/String;)I"))
+            result.append(self.emitPUSHCONST("0", IntType(), frame))
+            if op == ">":
+                result.append(self.jvm.emitIFICMPLE(labelF))
+            elif op == ">=":
+                result.append(self.jvm.emitIFICMPLT(labelF))
+            elif op == "<":
+                result.append(self.jvm.emitIFICMPGE(labelF))
+            elif op == "<=":
+                result.append(self.jvm.emitIFICMPGT(labelF))
+            elif op == "!=":
+                result.append(self.jvm.emitIFICMPEQ(labelF))
+            elif op == "==":
+                result.append(self.jvm.emitIFICMPNE(labelF))
+
         result.append(self.emitPUSHCONST("1", IntType(), frame))
         frame.pop()
-        result.append(self.emitGOTO(labelO, frame))
+        result.append(self.emitGOTO(str(labelO), frame))
         result.append(self.emitLABEL(labelF, frame))
         result.append(self.emitPUSHCONST("0", IntType(), frame))
         result.append(self.emitLABEL(labelO, frame))
+        
         return ''.join(result)
 
     def emitRELOP(self, op, in_, trueLabel, falseLabel, frame):

@@ -94,8 +94,7 @@ class CodeGenerator(BaseVisitor,Utils):
         self.emit.printout(self.emit.emitLABEL(frame.getStartLabel(), frame))
 
         env['frame'] = frame
-        self.visit(Block([Assign(Id(item.varName), item.varInit) for item in ast.decl if isinstance(item, VarDecl) ] + 
-                         [Assign(Id(item.conName), item.iniExpr) for item in ast.decl if isinstance(item, ConstDecl)]),env)
+        self.visit(Block([Assign(Id(item.varName), item.varInit) for item in ast.decl if isinstance(item, VarDecl) and item.varInit]  ),env)
         
         self.emit.printout(self.emit.emitLABEL(frame.getEndLabel(), frame))
         self.emit.printout(self.emit.emitRETURN(VoidType(), frame))  
@@ -159,15 +158,16 @@ class CodeGenerator(BaseVisitor,Utils):
 
             ast.varInit = varInit
         env = o.copy()
-        env['frame'] = Frame("<my-frame>", VoidType()) 
+        env['frame'] = Frame("<template_VT>", VoidType()) 
 
         rhsCode, rhsType = self.visit(varInit, env)
 
         if not varType:
             varType = rhsType
-        if 'frame' not in o: 
+
+        if 'frame' not in o: # TH global var 
             o['env'][0].append(Symbol(ast.varName, varType, CName(self.className)))
-            self.emit.printout(self.emit.emitATTRIBUTE(ast.varName, varType, True, False, str(ast.varInit.value)))
+            self.emit.printout(self.emit.emitATTRIBUTE(ast.varName, varType, True, False, None))
         else:
             frame = o['frame']
 
@@ -178,10 +178,10 @@ class CodeGenerator(BaseVisitor,Utils):
             self.emit.printout(self.emit.emitVAR(index, ast.varName, varType, frame.getStartLabel(), frame.getEndLabel(), frame))  
             rhsCode, rhsType = self.visit(varInit, o)
             if type(varType) is FloatType and type(rhsType) is IntType:
-                rhsCode += self.emit.emitI2F(frame)
+                rhsCode += self.emit.emitI2F(frame) 
                   
             self.emit.printout(rhsCode)
-            self.emit.printout(self.emit.emitWRITEVAR(ast.varName, varType, index,  frame))                   
+            self.emit.printout(self.emit.emitWRITEVAR(ast.varName, varType, index, frame))                   
         return o
 
     
@@ -222,14 +222,14 @@ class CodeGenerator(BaseVisitor,Utils):
 
         env = o.copy()
         env['frame'] = frame
-        self.emit.printout(self.emit.emitMETHOD(ast.name, mtype, True, frame))
+        self.emit.printout(self.emit.emitMETHOD(ast.name, mtype,True, frame))
         frame.enterScope(True)
         self.emit.printout(self.emit.emitLABEL(frame.getStartLabel(), frame))
         env['env'] = [[]] + env['env']
         if isMain:
             self.emit.printout(self.emit.emitVAR(frame.getNewIndex(), "args", ArrayType([None],StringType()), frame.getStartLabel(), frame.getEndLabel(), frame))
         else:
-            env = reduce(lambda a,e: self.visit(e,a),ast.params,env)
+            env = reduce(lambda acc,e: self.visit(e,acc),ast.params,env)
 
         self.visit(ast.body,env)
         self.emit.printout(self.emit.emitLABEL(frame.getEndLabel(), frame))
@@ -442,6 +442,7 @@ class CodeGenerator(BaseVisitor,Utils):
             else:         
                 #Putstatic là ghi vào biến static,
                 return self.emit.emitPUTSTATIC(f"{sym.value.value}/{sym.name}",sym.mtype,o['frame']),sym.mtype  
+            
         if type(sym.value) is Index: 
             return self.emit.emitREADVAR(ast.name, sym.mtype, sym.value.value, o['frame']) , sym.mtype 
         else:         
@@ -508,7 +509,7 @@ class CodeGenerator(BaseVisitor,Utils):
                     codeRight += self.emit.emitI2F(frame)
             return codeLeft + codeRight + self.emit.emitMULOP(op,typeReturn,frame),typeReturn 
         if op in ['%']:
-            return codeLeft + codeRight +  self.emit.emitMOD(frame),IntType()   
+            return codeLeft + codeRight +  self.emit.emitMOD(frame), typeLeft
         if op in ['==', '!=', '<', '>', '>=', '<='] and type(typeLeft) in [FloatType, IntType]:
             return codeLeft + codeRight +  self.emit.emitREOP(op,typeLeft, frame),BoolType()
         if op in ['||']:
@@ -518,10 +519,9 @@ class CodeGenerator(BaseVisitor,Utils):
 
         # nối string string        
         if op in ['+', '-'] and type(typeLeft) in [StringType]:
-            return codeLeft + codeRight + self.emit.emitINVOKESPECIAL(frame,"concat",StringType)  , StringType()  
+            return codeLeft + codeRight + self.emit.emitINVOKEVIRTUAL("java/lang/String/concat", MType([StringType()],StringType()),frame)  , StringType()  
         if op in ['==', '!=', '<', '>', '>=', '<='] and type(typeLeft) in [StringType]:
-            code = codeLeft + codeRight + self.emit.emitINVOKESPECIAL(frame,"compareTo",StringType)  , StringType()    
-            code = code +   self.emit.emitREOP(op, IntType(), frame)
+            code = codeLeft + codeRight + self.emit.emitREOP(op, typeLeft, frame)
             return code, BoolType()    
         
     def visitUnaryOp(self, ast, o):
@@ -542,8 +542,8 @@ class CodeGenerator(BaseVisitor,Utils):
         sym = next(filter(lambda x: x.name == ast.funName, self.fun_list),None)
         if o.get('stmt'):
             o["stmt"] = False
-            code = "".join([str(self.visit(x,o)[0]) for x in ast.args])
-            self.emit.printout(code)
+            output = "".join([str(self.visit(x,o)[0]) for x in ast.args])
+            self.emit.printout(output)
             self.emit.printout(self.emit.emitINVOKESTATIC(f"{sym.value.value}/{ast.funName}",sym.mtype, o['frame']))
             return o 
         
@@ -570,7 +570,7 @@ class CodeGenerator(BaseVisitor,Utils):
         return self.emit.emitPUSHCONST(str(ast.value),StringType(),o['frame']),StringType()
 
     def visitBooleanLiteral(self, ast, o):
-        return self.emit.emitPUSHICONST(ast.value, o['frame']), BoolType()
+        return self.emit.emitPUSHICONST(int(ast.value), o['frame']), BoolType()
     
     def visitArrayLiteral(self, ast, o):
         # dimens:List[Expr]

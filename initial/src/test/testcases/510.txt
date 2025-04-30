@@ -1,17 +1,6 @@
 
-        func fvoid() {putStringLn("VoTien");}
-
-        var global = fint()
         func main() {
-            fvoid();
-            putFloatLn(global + 2.0)
-
-            var local = "a";
-            putBoolLn(local <= "b")
-            local += "c"
-            putStringLn(local)
-
-        };
-
-        func fint() int {return 1;}
-        
+            var a float = 3.0;
+            putFloat(1 + a)
+        }
+         
