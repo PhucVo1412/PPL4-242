@@ -144,8 +144,12 @@ class Emitter():
         #..., arrayref, index, value -> ...
         
         frame.pop()
-        if type(in_) is IntType or  type(in_) is BoolType:
+        if type(in_) is IntType :
             return self.jvm.emitIALOAD()
+        elif type(in_) is BoolType:
+            return self.jvm.emitBALOAD()
+        elif type(in_) is FloatType:
+            return self.jvm.emitFALOAD()
         elif type(in_) is cgen.ArrayType or type(in_) is cgen.ClassType or type(in_) is StringType:
             return self.jvm.emitAALOAD()
         else:
@@ -159,10 +163,12 @@ class Emitter():
         frame.pop()
         frame.pop()
         frame.pop()
-        if type(in_) is IntType or type(in_) is BoolType:
+        if type(in_) is IntType :
             return self.jvm.emitIASTORE()
         elif type(in_) is FloatType:
             return self.jvm.emitFASTORE()
+        elif type(in_) is BoolType:
+            return self.jvm.emitBASTORE()
         elif type(in_) is cgen.ArrayType or type(in_) is cgen.ClassType or type(in_) is StringType:
             return self.jvm.emitAASTORE()
         else:
@@ -528,7 +534,8 @@ class Emitter():
         #..., value1, value2 -> ..., result
 
         result = list()
-
+        trueLabel = str(trueLabel)
+        falseLabel = str(falseLabel)
         frame.pop()
         frame.pop()
         if op == ">":
@@ -692,7 +699,7 @@ class Emitter():
     def emitGOTO(self, label, frame):
         #label: Int
         #frame: Frame
-
+        label = str(label)
         return self.jvm.emitGOTO(label)
 
     ''' generate some starting directives for a class.<p>
@@ -738,7 +745,12 @@ class Emitter():
         return
     
     def emitANEWARRAY(self, in_, frame):
-        return self.jvm.emitANEWARRAY("int")   
+        #in_: Type
+        #frame: Frame
+        lexeme = self.getJVMType(in_)
+        return self.jvm.emitANEWARRAY(lexeme)
+    
+        raise IllegalOperandException(str(in_)) 
 
     ''' print out the code to screen
     *   @param in the code to be printed out

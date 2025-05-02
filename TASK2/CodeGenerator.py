@@ -144,30 +144,31 @@ class CodeGenerator(BaseVisitor,Utils):
             elif type(varType) is BoolType:
                 return BooleanLiteral(False)
             elif type(varType) is ArrayType:
-                # Get array dimensions
                 dimensions = varType.dimens
                 
-                # Base case: if no dimensions left, initialize element type
+                # Base case: if no dimensions left, initialize the element type
                 if not dimensions:
                     return create_init(varType.eleType, o)
                     
-                # Get size of first dimension (assuming constant integer)
-                first_dim = dimensions[0]
-                if hasattr(first_dim, 'value'):
-                    size = first_dim.value
-                else:
-                    size = 0  # Default if dimension isn't a literal
-                    
-                # Create elements for this dimension
-                elements = []
-                for _ in range(size):
-                    # For multi-dimensional arrays, recurse with remaining dimensions
-                    if len(dimensions) > 1:
-                        remaining_dims = dimensions[1:]
-                        elements.append(create_init(ArrayType(remaining_dims, varType.eleType), o))
+                # Extract dimension sizes (assuming dimensions are IntLiteral)
+                dim_sizes = []
+                for dim in dimensions:
+                    if type(dim) is IntLiteral:
+                        dim_sizes.append(dim.value)
                     else:
-                        elements.append(create_init(varType.eleType, o))
+                        dim_sizes.append(0)  # Default if dimension is not a literal
                         
+                def build_array(dims, eleType):
+                    if len(dims) == 1:
+                        # Innermost dimension: create elements of eleType
+                        return [create_init(eleType, o) for _ in range(dims[0])]
+                    else:
+                        # Recursively build sub-arrays for higher dimensions
+                        return [build_array(dims[1:], eleType) for _ in range(dims[0])]
+                        
+                # Generate the nested array structure
+                elements = build_array(dim_sizes, varType.eleType)
+                
                 return ArrayLiteral(dimensions, varType.eleType, elements)
 
                 
@@ -182,7 +183,6 @@ class CodeGenerator(BaseVisitor,Utils):
         env['frame'] = Frame("<template_VT>", VoidType()) 
 
         rhsCode, rhsType = self.visit(varInit, env)
-
         if not varType:
             varType = rhsType
 
@@ -233,7 +233,6 @@ class CodeGenerator(BaseVisitor,Utils):
 
         frame = Frame(ast.name, ast.retType)
 
-        isMain = ast.name == "main"
         isMain = ast.name == "main"
         if isMain:
             mtype = MType([ArrayType([None],StringType())], VoidType())
@@ -331,7 +330,6 @@ class CodeGenerator(BaseVisitor,Utils):
         if type(ast.lhs) is Id and not next(filter(lambda x: x.name == ast.lhs.name, [sym for env in o['env'] for sym in env]), None) :
             return self.visit(VarDecl(ast.lhs.name,None,ast.rhs),o)
 
-        o['isLeft'] = False
         rhsCode, rhsType = self.visit(ast.rhs, o)
         o['isLeft'] = True
         lhsCode, lhsType = self.visit(ast.lhs, o) 
@@ -344,18 +342,18 @@ class CodeGenerator(BaseVisitor,Utils):
 
 
         if type(ast.lhs) is ArrayCell:
+            o['frame'].push()
+            o['frame'].push()
             self.emit.printout(lhsCode)
             self.emit.printout(rhsCode)
             self.emit.printout(self.emit.emitASTORE(lhsType,o['frame']))
+            o['frame'].pop()
+            o['frame'].pop()
         else:
             self.emit.printout(rhsCode)
             self.emit.printout(lhsCode)
 
         return o
-
-
-
-
 
     
     def visitIf(self, ast, o):
@@ -366,23 +364,20 @@ class CodeGenerator(BaseVisitor,Utils):
         self.emit.printout(code)
 
         Label0 = o['frame'].getNewLabel()
-        if ast.elseStmt:
-            Label1 = o['frame'].getNewLabel()
-
-        code = self.emit.emitIFFALSE(Label0,o['frame'])
-        self.emit.printout(code)
-
+        Label1 = o['frame'].getNewLabel() if ast.elseStmt else None
+ 
+        self.emit.printout(self.emit.emitIFFALSE(Label0,o['frame']))
         self.visit(ast.thenStmt,o)
 
         if ast.elseStmt:    
-            code = self.emit.emitGOTO(Label1,o['frame'])
+            self.emit.printout(self.emit.emitGOTO(Label1,o['frame']))
 
-        self.emit.emitLABEL(Label0,o['frame'])
+        self.emit.printout(self.emit.emitLABEL(Label0,o['frame']))
 
         if ast.elseStmt:
-            self.visit(self.elseStmt,o['frame'])
+            self.visit(ast.elseStmt,o)
 
-        self.emit.emitLABEL(Label1,o['frame'])
+        self.emit.printout(self.emit.emitLABEL(Label1,o['frame']))
         return o
 
 
@@ -391,23 +386,19 @@ class CodeGenerator(BaseVisitor,Utils):
         # cond:Expr
         # loop:Block
         o['frame'].enterLoop()
+        NewLabel = o['frame'].getNewLabel()
         ConLabel = o['frame'].getContinueLabel()
-        BreakLabel = o['frame'].getBreakLable()
+        BreakLabel = o['frame'].getBreakLabel()
 
-        code = self.emit.emitLABEL(ConLabel)
-        self.emit.printout(code)
+        self.emit.printout(self.emit.emitLABEL(ConLabel,o['frame']))
+        self.emit.printout(self.visit(ast.cond,o)[0])
+        self.emit.printout(self.emit.emitIFFALSE(NewLabel,o['frame']))
 
-        code,typ = self.visit(ast.cond,o)
-        self.emit.printout(code)
+        self.visit(ast.loop,o)
 
-        code = self.emit.emitIFFALSE(BreakLabel,o['frame'])
-
-        self.visit(ast.loop,o['frame'])
-
-        code = self.emit.emitGOTO(ConLabel,o['frame'])
-        self.emit.printout(code)
-
-        self.emit.emitLABEL(BreakLabel)
+        self.emit.printout(self.emit.emitGOTO(ConLabel,o['frame']))
+        self.emit.printout(self.emit.emitLABEL(NewLabel,o['frame']))
+        self.emit.printout(self.emit.emitLABEL(BreakLabel,o['frame']))
         o['frame'].exitLoop()
         return o
 
@@ -420,16 +411,17 @@ class CodeGenerator(BaseVisitor,Utils):
 
         ContinueLabel = o['frame'].getContinueLabel()
         BreakLabel = o['frame'].getBreakLabel()
-
+        NewLabel = o['frame'].getNewLabel()
         self.visit(ast.init,o)
 
-        self.emit.printout(self.emit.emitLABEL(ContinueLabel,o['frame']))
+        self.emit.printout(self.emit.emitLABEL(NewLabel,o['frame']))
         self.visit(ast.cond,o)
         self.emit.printout(self.emit.emitIFFALSE(BreakLabel,o['frame']))
 
         self.visit(ast.loop,o)
+        self.emit.printout(self.emit.emitLABEL(ContinueLabel,o['frame']))
         self.visit(ast.upda,o)
-        self.emit.printout(self.emit.emitGOTO(ContinueLabel, o['frame']))
+        self.emit.printout(self.emit.emitGOTO(NewLabel, o['frame']))
 
         self.emit.printout(self.emit.emitLABEL(BreakLabel,o['frame']))
 
@@ -477,24 +469,27 @@ class CodeGenerator(BaseVisitor,Utils):
         newO['isLeft'] = False
         codeGen, arrType = self.visit(ast.arr, newO) 
 
+        
+
         for idx, item in enumerate(ast.idx):
             codeGen += self.visit(item, newO)[0]
             if idx != len(ast.idx) - 1:
-                codeGen += self.emit.emitALOAD(arrType.eleType, o['frame'])
+                codeGen += self.emit.emitALOAD(arrType, o['frame'])
 
         retType = None
         if len(arrType.dimens) == len(ast.idx):
-            retType = arrType.eleType 
+            retType = arrType.eleType
             if not o.get('isLeft'):
                 codeGen += self.emit.emitALOAD(arrType.eleType, o['frame']) 
             else:
                 self.arrayCell =  ast 
         else:
-            retType = ArrayType(arrType.dimens[len(ast.idx): ], arrType.eleType)
+            retType = ArrayType(arrType.dimens[1:: ], arrType.eleType)
             if not o.get('isLeft'):
-                codeGen += self.emit.emitALOAD(arrType.eleType, o['frame']) 
+                codeGen += self.emit.emitALOAD(retType, o['frame']) 
             else:
                 self.arrayCell = ast
+
         return codeGen, retType
 
     def visitFieldAccess(self, ast, o):
@@ -595,15 +590,20 @@ class CodeGenerator(BaseVisitor,Utils):
         # dimens:List[Expr]
         # eleType: Type
         # value: NestedList
+        def getdimensions(dat):
+            if not isinstance(dat[0], list):
+                return [IntLiteral(len(dat))]
 
+            return [IntLiteral(len(dat))] + getdimensions(dat[0])
         def nested2recursive(dat, o) :
             if not isinstance(dat,list): 
                 return self.visit(dat, o)
             
             frame = o['frame']
-            codeGen = self.emit.emitPUSHICONST(len(dat), o['frame'] ) 
-
+             
+            
             if not isinstance(dat[0],list):
+                codeGen = self.emit.emitPUSHCONST(len(dat), IntType(), frame)
                 _ , type_element_array = self.visit(dat[0], o)
                 codeGen += self.emit.emitNEWARRAY(type_element_array,o['frame'])
                 
@@ -612,16 +612,17 @@ class CodeGenerator(BaseVisitor,Utils):
                     codeGen += self.emit.emitPUSHICONST(idx,o['frame'])
                     codeGen += self.visit(item, o)[0] 
                     codeGen += self.emit.emitASTORE(type_element_array, o['frame'])
-                return codeGen, ArrayType(ast.dimens,ast.eleType)
+                return codeGen, ArrayType([IntLiteral(len(dat))],ast.eleType)
             
-            codeGen += self.emit.emitANEWARRAY(ast.eleType,o['frame'])
+            codeGen = self.emit.emitPUSHCONST(len(dat), IntType(), frame)
             _, type_element_array = nested2recursive(dat[0], o)
+            codeGen += self.emit.emitANEWARRAY(type_element_array,o['frame'])
             for idx, item in enumerate(dat):
                 codeGen += self.emit.emitDUP(o['frame'])
                 codeGen += self.emit.emitPUSHICONST(idx,o['frame'])
                 codeGen += nested2recursive(item, o)[0]
                 codeGen += self.emit.emitASTORE(type_element_array, o['frame'])
-            return  codeGen, ArrayType(ast.dimens[1::],ast.eleType)
+            return  codeGen, ArrayType(getdimensions(dat),ast.eleType)
         
         return nested2recursive(ast.value, o) 
 

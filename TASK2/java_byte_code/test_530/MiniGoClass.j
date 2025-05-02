@@ -11,50 +11,45 @@ Label2:
 	anewarray [I
 	dup
 	iconst_0
-	iconst_3
+	iconst_2
 	newarray int
 	dup
 	iconst_0
-	bipush 10
+	iconst_1
 	iastore
 	dup
 	iconst_1
-	bipush 20
-	iastore
-	dup
 	iconst_2
-	bipush 30
 	iastore
 	aastore
 	dup
 	iconst_1
-	iconst_3
+	iconst_2
 	newarray int
 	dup
 	iconst_0
-	bipush 40
+	iconst_3
 	iastore
 	dup
 	iconst_1
-	bipush 50
-	iastore
-	dup
-	iconst_2
-	bipush 60
+	iconst_4
 	iastore
 	aastore
 	astore_1
+.var 2 is b [I from Label2 to Label3
 	aload_1
-	iconst_1
-	aaload
 	iconst_0
+	aaload
+	astore_2
+	aload_2
+	iconst_1
 	iaload
 	invokestatic io/putInt(I)V
 Label3:
 Label1:
 	return
 .limit stack 11
-.limit locals 2
+.limit locals 3
 .end method
 
 .method public <init>()V

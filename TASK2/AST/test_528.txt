@@ -1,0 +1,1 @@
+Program([FuncDecl(main,[],VoidType,Block([VarDecl(a,ArrayType(BoolType,[IntLiteral(2),IntLiteral(3)])),Assign(ArrayCell(Id(a),[IntLiteral(0),IntLiteral(0)]),BooleanLiteral(true)),FuncCall(putBool,[ArrayCell(Id(a),[IntLiteral(0),IntLiteral(0)])])]))])

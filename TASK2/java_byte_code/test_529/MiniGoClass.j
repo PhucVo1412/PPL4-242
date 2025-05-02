@@ -1,60 +1,39 @@
 .source MiniGoClass.java
 .class public MiniGoClass
 .super java.lang.Object
+.field static a [I
 
 .method public static main([Ljava/lang/String;)V
 Label0:
 .var 0 is args [Ljava/lang/String; from Label0 to Label1
 Label2:
-.var 1 is a [[I from Label2 to Label3
-	iconst_2
-	anewarray [I
-	dup
+	getstatic MiniGoClass/a [I
 	iconst_0
-	iconst_3
-	newarray int
-	dup
+	bipush 100
+	iastore
+	getstatic MiniGoClass/a [I
+	iconst_1
+	getstatic MiniGoClass/a [I
+	iconst_1
+	iaload
+	getstatic MiniGoClass/a [I
 	iconst_0
-	bipush 10
-	iastore
-	dup
-	iconst_1
-	bipush 20
-	iastore
-	dup
-	iconst_2
-	bipush 30
-	iastore
-	aastore
-	dup
-	iconst_1
-	iconst_3
-	newarray int
-	dup
+	iaload
+	getstatic MiniGoClass/a [I
 	iconst_0
-	bipush 40
+	iaload
+	iadd
+	iadd
 	iastore
-	dup
+	getstatic MiniGoClass/a [I
 	iconst_1
-	bipush 50
-	iastore
-	dup
-	iconst_2
-	bipush 60
-	iastore
-	aastore
-	astore_1
-	aload_1
-	iconst_1
-	aaload
-	iconst_0
 	iaload
 	invokestatic io/putInt(I)V
 Label3:
 Label1:
 	return
-.limit stack 11
-.limit locals 2
+.limit stack 7
+.limit locals 1
 .end method
 
 .method public <init>()V
@@ -71,9 +50,20 @@ Label1:
 .method public static <clinit>()V
 Label0:
 Label2:
+	iconst_2
+	newarray int
+	dup
+	iconst_0
+	iconst_0
+	iastore
+	dup
+	iconst_1
+	iconst_0
+	iastore
+	putstatic MiniGoClass/a [I
 Label3:
 Label1:
 	return
-.limit stack 0
+.limit stack 5
 .limit locals 0
 .end method

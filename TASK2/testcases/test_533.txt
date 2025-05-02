@@ -1,0 +1,12 @@
+
+func main() {
+    if (false) {
+        putInt(1);
+    } else if (false) {
+        putInt(2);
+    } else {
+        putInt(3);
+    }
+}
+        
+        

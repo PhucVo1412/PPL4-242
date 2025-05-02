@@ -18,27 +18,27 @@ from AST import *
 """
 class CodeGenSuite(unittest.TestCase):
 
-    def test_int_literal(self):
+    def test_501(self):
         input = """func main() {putInt(5);};"""
         expect = "5"
         self.assertTrue(TestCodeGen.test(input,expect,inspect.stack()[0].function))
-    def test_local_var(self):
+    def test_502(self):
         input = """func main() {var a int = 20;  putInt(a);};"""
         expect = "20"
         self.assertTrue(TestCodeGen.test(input,expect,inspect.stack()[0].function))
-    def test_global_var(self):
+    def test_503(self):
         input = """var a int = 10; func main() { putInt(a);};"""
         expect = "10"
         self.assertTrue(TestCodeGen.test(input,expect,inspect.stack()[0].function))
-    def test_int_ast(self):
+    def test_504(self):
         input = Program([FuncDecl("main",[],VoidType(),Block([FuncCall("putInt", [IntLiteral(25)])]))])
         expect = "25"
         self.assertTrue(TestCodeGen.test(input,expect,inspect.stack()[0].function))
-    def test_local_var_ast(self):
+    def test_505(self):
         input = Program([FuncDecl("main",[],VoidType(),Block([VarDecl("a",IntType(),IntLiteral(500)),FuncCall("putInt", [Id("a")])]))])
         expect = "500"
         self.assertTrue(TestCodeGen.test(input,expect,inspect.stack()[0].function))
-    def test_global_var_ast(self):  
+    def test_506(self):  
         input = Program([VarDecl("a",IntType(),IntLiteral(5000)),FuncDecl("main",[],VoidType(),Block([FuncCall("putInt", [Id("a")])]))])
         expect = "5000"
         self.assertTrue(TestCodeGen.test(input,expect,inspect.stack()[0].function))
@@ -266,4 +266,127 @@ func main() {
     putInt(a[1][0])
 }
 """
-        self.assertTrue(TestCodeGen.test(input,"1",inspect.stack()[0].function))
+        self.assertTrue(TestCodeGen.test(input,"40",inspect.stack()[0].function))
+
+    def test_525(self):
+        input = """
+func main() {
+    var a [2][3] int ;
+    putInt(a[0][0])
+    putInt(a[0][1])
+    putInt(a[0][2])
+    putInt(a[1][0])
+    putInt(a[1][1])
+    putInt(a[1][2])
+}
+"""     
+        self.assertTrue(TestCodeGen.test(input,"000000",inspect.stack()[0].function))
+
+    def test_526(self):
+        input = """func main() {
+    var a [2][3][2] int ;
+    putInt(a[0][0][0])
+}
+"""
+        self.assertTrue(TestCodeGen.test(input,"0",inspect.stack()[0].function))
+
+    def test_527(self):
+        input = """ func main() {
+    var a [2][3] float;
+    a[0][0] += 2.0
+    putFloat(a[0][0] + a[0][1])
+}
+"""
+        self.assertTrue(TestCodeGen.test(input,"2.0",inspect.stack()[0].function))
+
+    def test_528(self):
+        input = """
+func main() {
+    var a [2][3] boolean;
+    a[0][0] := true
+    putBool(a[0][0])
+
+}
+"""
+        self.assertTrue(TestCodeGen.test(input,"true",inspect.stack()[0].function))
+
+    def test_529(self):
+        input = """
+    var a [2] int;
+    func main() {
+        a[0] := 100
+        a[1] += a[0] + a[0]
+        putInt(a[1])
+    }
+    """
+        self.assertTrue(TestCodeGen.test(input,"200",inspect.stack()[0].function))
+
+    def test_530(self):
+        input = """ func main() {
+        var a = [2][2] int {{1,2}, {3,4}};
+        var b = a[0]
+        putInt(b[1]);
+    }
+    """
+        self.assertTrue(TestCodeGen.test(input,"2",inspect.stack()[0].function))
+    
+    def test_531(self):
+        input = """func main() {
+    if (true) {
+        putBool(true)
+    } 
+}
+"""
+        self.assertTrue(TestCodeGen.test(input,"true",inspect.stack()[0].function))
+
+    def test_532(self):
+        input = """
+func main() {
+    if (true) {
+        putBool(true)
+    } else {
+        putBool(false)     
+    }
+}
+    """
+        self.assertTrue(TestCodeGen.test(input,"true",inspect.stack()[0].function))
+
+    def test_533(self):
+        input = """
+func main() {
+    if (false) {
+        putInt(1);
+    } else if (false) {
+        putInt(2);
+    } else {
+        putInt(3);
+    }
+}
+        
+        """
+        self.assertTrue(TestCodeGen.test(input,"3",inspect.stack()[0].function))
+    
+    def test_534(self):
+        input = """
+func main() {
+    var i = 2;
+    for i > 0 {
+        putInt(i);
+        i -= 1;
+    }
+    putInt(i);
+}
+        """
+        self.assertTrue(TestCodeGen.test(input,"210",inspect.stack()[0].function))
+
+    def test_535(self):
+        input = """
+func main() {
+    var i int;
+    for i := 0; i < 2; i += 1 {
+        putInt(i)
+    }
+    putInt(i)
+}
+        """
+        self.assertTrue(TestCodeGen.test(input,"012",inspect.stack()[0].function))

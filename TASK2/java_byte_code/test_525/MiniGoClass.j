@@ -15,15 +15,15 @@ Label2:
 	newarray int
 	dup
 	iconst_0
-	bipush 10
+	iconst_0
 	iastore
 	dup
 	iconst_1
-	bipush 20
+	iconst_0
 	iastore
 	dup
 	iconst_2
-	bipush 30
+	iconst_0
 	iastore
 	aastore
 	dup
@@ -32,22 +32,52 @@ Label2:
 	newarray int
 	dup
 	iconst_0
-	bipush 40
+	iconst_0
 	iastore
 	dup
 	iconst_1
-	bipush 50
+	iconst_0
 	iastore
 	dup
 	iconst_2
-	bipush 60
+	iconst_0
 	iastore
 	aastore
 	astore_1
 	aload_1
+	iconst_0
+	aaload
+	iconst_0
+	iaload
+	invokestatic io/putInt(I)V
+	aload_1
+	iconst_0
+	aaload
+	iconst_1
+	iaload
+	invokestatic io/putInt(I)V
+	aload_1
+	iconst_0
+	aaload
+	iconst_2
+	iaload
+	invokestatic io/putInt(I)V
+	aload_1
 	iconst_1
 	aaload
 	iconst_0
+	iaload
+	invokestatic io/putInt(I)V
+	aload_1
+	iconst_1
+	aaload
+	iconst_1
+	iaload
+	invokestatic io/putInt(I)V
+	aload_1
+	iconst_1
+	aaload
+	iconst_2
 	iaload
 	invokestatic io/putInt(I)V
 Label3:

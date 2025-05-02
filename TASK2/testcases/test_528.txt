@@ -1,0 +1,7 @@
+
+func main() {
+    var a [2][3] boolean;
+    a[0][0] := true
+    putBool(a[0][0])
+
+}

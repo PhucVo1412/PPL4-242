@@ -6,50 +6,68 @@
 Label0:
 .var 0 is args [Ljava/lang/String; from Label0 to Label1
 Label2:
-.var 1 is a [[I from Label2 to Label3
+.var 1 is a [[F from Label2 to Label3
 	iconst_2
-	anewarray [I
+	anewarray [F
 	dup
 	iconst_0
 	iconst_3
-	newarray int
+	newarray float
 	dup
 	iconst_0
-	bipush 10
-	iastore
+	ldc 0.0
+	fastore
 	dup
 	iconst_1
-	bipush 20
-	iastore
+	ldc 0.0
+	fastore
 	dup
 	iconst_2
-	bipush 30
-	iastore
+	ldc 0.0
+	fastore
 	aastore
 	dup
 	iconst_1
 	iconst_3
-	newarray int
+	newarray float
 	dup
 	iconst_0
-	bipush 40
-	iastore
+	ldc 0.0
+	fastore
 	dup
 	iconst_1
-	bipush 50
-	iastore
+	ldc 0.0
+	fastore
 	dup
 	iconst_2
-	bipush 60
-	iastore
+	ldc 0.0
+	fastore
 	aastore
 	astore_1
 	aload_1
-	iconst_1
+	iconst_0
 	aaload
 	iconst_0
-	iaload
-	invokestatic io/putInt(I)V
+	aload_1
+	iconst_0
+	aaload
+	iconst_0
+	faload
+	ldc 2.0
+	fadd
+	fastore
+	aload_1
+	iconst_0
+	aaload
+	iconst_0
+	faload
+	aload_1
+	iconst_0
+	aaload
+	iconst_1
+	faload
+	fadd
+	invokestatic io/putFloat(F)V
 Label3:
 Label1:
 	return

@@ -6,46 +6,102 @@
 Label0:
 .var 0 is args [Ljava/lang/String; from Label0 to Label1
 Label2:
-.var 1 is a [[I from Label2 to Label3
+.var 1 is a [[[I from Label2 to Label3
 	iconst_2
+	anewarray [[I
+	dup
+	iconst_0
+	iconst_3
 	anewarray [I
 	dup
 	iconst_0
-	iconst_3
+	iconst_2
 	newarray int
 	dup
 	iconst_0
-	bipush 10
+	iconst_0
 	iastore
 	dup
 	iconst_1
-	bipush 20
-	iastore
-	dup
-	iconst_2
-	bipush 30
+	iconst_0
 	iastore
 	aastore
 	dup
 	iconst_1
-	iconst_3
+	iconst_2
 	newarray int
 	dup
 	iconst_0
-	bipush 40
+	iconst_0
 	iastore
 	dup
 	iconst_1
-	bipush 50
+	iconst_0
 	iastore
+	aastore
 	dup
 	iconst_2
-	bipush 60
+	iconst_2
+	newarray int
+	dup
+	iconst_0
+	iconst_0
 	iastore
+	dup
+	iconst_1
+	iconst_0
+	iastore
+	aastore
+	aastore
+	dup
+	iconst_1
+	iconst_3
+	anewarray [I
+	dup
+	iconst_0
+	iconst_2
+	newarray int
+	dup
+	iconst_0
+	iconst_0
+	iastore
+	dup
+	iconst_1
+	iconst_0
+	iastore
+	aastore
+	dup
+	iconst_1
+	iconst_2
+	newarray int
+	dup
+	iconst_0
+	iconst_0
+	iastore
+	dup
+	iconst_1
+	iconst_0
+	iastore
+	aastore
+	dup
+	iconst_2
+	iconst_2
+	newarray int
+	dup
+	iconst_0
+	iconst_0
+	iastore
+	dup
+	iconst_1
+	iconst_0
+	iastore
+	aastore
 	aastore
 	astore_1
 	aload_1
-	iconst_1
+	iconst_0
+	aaload
+	iconst_0
 	aaload
 	iconst_0
 	iaload
@@ -53,7 +109,7 @@ Label2:
 Label3:
 Label1:
 	return
-.limit stack 11
+.limit stack 26
 .limit locals 2
 .end method
 
