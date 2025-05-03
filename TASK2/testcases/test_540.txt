@@ -1,0 +1,9 @@
+
+const a = [2] int {2,3}
+func main() {
+    var b [a[0]][a[1]] int;
+    putInt(b[0][0]);
+    b[0][0] := 20;
+    putInt(b[0][0]);
+}
+        

@@ -1,0 +1,5 @@
+
+        const a = "votien"
+func main() {
+    putString(a)
+}

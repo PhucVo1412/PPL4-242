@@ -390,3 +390,135 @@ func main() {
 }
         """
         self.assertTrue(TestCodeGen.test(input,"012",inspect.stack()[0].function))
+
+    def test_536(self):
+        input = """
+        func main() {
+            var i int = 10;
+            for var i int = 0; i < 2; i += 1 {
+                putIntLn(i)
+            }
+            putInt(i)
+        }
+        """
+        self.assertTrue(TestCodeGen.test(input,"0\n1\n10",inspect.stack()[0].function))
+
+    def test_537(self):
+        input = """
+        const a = "votien"
+func main() {
+    putString(a)
+}
+"""
+        self.assertTrue(TestCodeGen.test(input,"votien",inspect.stack()[0].function))
+
+    def test_538(self):
+        input = """
+const a = 2
+func main() {
+    var b [a] int;
+    putInt(b[0]);
+    b[0] := 20;
+    putInt(b[0]);
+}
+        """
+        self.assertTrue(TestCodeGen.test(input,"020",inspect.stack()[0].function))
+
+    def test_539(self):
+        input = """
+const a = 1 + 1
+const c = 5 - a
+func main() {
+    var b [a][c] int;
+    putInt(b[0][0]);
+    b[0][0] := 20;
+    putInt(b[0][0]);
+}
+        """
+        self.assertTrue(TestCodeGen.test(input,"020",inspect.stack()[0].function))
+
+    def test_540(self):
+        input = """
+const a = [2] int {2,3}
+func main() {
+    var b [a[0]][a[1]] int;
+    putInt(b[0][0]);
+    b[0][0] := 20;
+    putInt(b[0][0]);
+}
+        """
+        self.assertTrue(TestCodeGen.test(input,"020",inspect.stack()[0].function))
+
+    def test_541(self):
+        input = """
+        const MAX = 5;
+        
+        func bfs(graph [MAX][MAX]int, start int){
+            var visited [MAX] boolean;
+            var queue [MAX] int;
+            var front = 0;
+            var rear = 0;
+            visited[start] := true;
+            queue[rear] := start;
+            rear += 1;
+            
+            for front < rear {
+                var u = queue[front]
+                front += 1;
+                putInt(u)
+                putString(" ")
+                for v := 0; v < MAX; v += 1{
+                    if (graph[u][v] == 1 && !visited[v]){
+                        visited[v] := true;
+                        queue[rear] := v;
+                        rear += 1;
+                    }
+                }   
+            }
+        }
+        
+        func main(){
+            var graph = [MAX][MAX] int {{0, 1, 0, 0, 0}, {1, 0, 1, 0, 0}, {0, 1, 0, 1, 0}, {0, 0, 1, 0, 1}, {0, 0, 0, 1, 0}};
+            bfs(graph, 0);
+        }
+        """
+        self.assertTrue(TestCodeGen.test(input, "0 1 2 3 4 ", inspect.stack()[0].function))
+
+    def test_542(self):
+        input = """
+        const MAX = 10;
+        
+        func generateBinary(arr [MAX]int, n int, index int){
+            if (index == n) {
+                for i := 0; i < n; i += 1 {
+                    putInt(arr[i]);
+                }
+                putLn();
+            } else {
+                arr[index] := 0;
+                generateBinary(arr, n, index + 1);
+                arr[index] := 1;
+                generateBinary(arr, n, index + 1);
+            }
+        }
+        
+        func main() {
+            var n = 3;
+            var arr [MAX] int;
+            putString("All binary strings of length = ")
+            putInt(n)
+            putLn()
+            generateBinary(arr, n, 0);
+        }
+        """
+        self.assertTrue(TestCodeGen.test(input, """All binary strings of length = 3
+000
+001
+010
+011
+100
+101
+110
+111
+""", inspect.stack()[0].function))
+    

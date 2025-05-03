@@ -35,10 +35,11 @@ class ClassType:
         self.name = name
 
 class Symbol:
-    def __init__(self,name,mtype,value = None):
+    def __init__(self,name,mtype,value, init1 = None):
         self.name = name
         self.mtype = mtype
         self.value = value
+        self.initValue = init1
 
     def __str__(self):
         return "Symbol(" + str(self.name) + "," + str(self.mtype) + ("" if self.value is None else "," + str(self.value)) + ")"

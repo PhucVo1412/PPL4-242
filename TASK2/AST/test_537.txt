@@ -1,0 +1,1 @@
+Program([ConstDecl(a,StringLiteral("votien")),FuncDecl(main,[],VoidType,Block([FuncCall(putString,[Id(a)])]))])

@@ -1,0 +1,32 @@
+
+        const MAX = 5;
+        
+        func bfs(graph [MAX][MAX]int, start int){
+            var visited [MAX] boolean;
+            var queue [MAX] int;
+            var front = 0;
+            var rear = 0;
+            visited[start] := true;
+            queue[rear] := start;
+            rear += 1;
+            
+            for front < rear {
+                var u = queue[front]
+                front += 1;
+                putInt(u)
+                putString(" ")
+                for v := 0; v < MAX; v += 1{
+                    if (graph[u][v] == 1 && !visited[v]){
+                        visited[v] := true;
+                        queue[rear] := v;
+                        rear += 1;
+                    }
+                }   
+            }
+        }
+        
+        func main(){
+            var graph = [MAX][MAX] int {{0, 1, 0, 0, 0}, {1, 0, 1, 0, 0}, {0, 1, 0, 1, 0}, {0, 0, 1, 0, 1}, {0, 0, 0, 1, 0}};
+            bfs(graph, 0);
+        }
+        

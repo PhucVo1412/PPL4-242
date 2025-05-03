@@ -1,0 +1,26 @@
+
+        const MAX = 10;
+        
+        func generateBinary(arr [MAX]int, n int, index int){
+            if (index == n) {
+                for i := 0; i < n; i += 1 {
+                    putInt(arr[i]);
+                }
+                putLn();
+            } else {
+                arr[index] := 0;
+                generateBinary(arr, n, index + 1);
+                arr[index] := 1;
+                generateBinary(arr, n, index + 1);
+            }
+        }
+        
+        func main() {
+            var n = 3;
+            var arr [MAX] int;
+            putString("All binary strings of length = ")
+            putInt(n)
+            putLn()
+            generateBinary(arr, n, 0);
+        }
+        
