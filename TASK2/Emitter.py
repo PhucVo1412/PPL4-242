@@ -751,7 +751,14 @@ class Emitter():
         lexeme = self.getJVMType(in_)
         return self.jvm.emitANEWARRAY(lexeme)
     
-        raise IllegalOperandException(str(in_)) 
+    def emitNEW(self, lexeme, frame):
+        frame.push()
+        return self.jvm.emitNEW(lexeme)
+
+    def emitPUSHNULL(self, frame):
+        frame.push()
+        return self.jvm.emitPUSHNULL()
+
 
     ''' print out the code to screen
     *   @param in the code to be printed out

@@ -46,6 +46,8 @@ class CodeGenerator(BaseVisitor,Utils):
         self.list_function = []
         self.arrayCell = None
         self.arrayCellType = None
+        self.list_type = {}
+        self.struct = None
 
     def init(self):
         mem = [ Symbol("getInt",MType([],IntType()),CName("io",True)),
@@ -119,8 +121,14 @@ class CodeGenerator(BaseVisitor,Utils):
 
         self.emit.printout(self.emit.emitEPILOG())
 
+        for item in self.list_type.values():
+            self.struct = item
+            self.emit = Emitter(self.path + "/" + item.name + ".j")
+            self.visit(item, {
+                'env': env['env']
+            })
         return env
-
+    
     def visitParamDecl(self,ast, o):
         # parName: str
         # parType: Type
@@ -265,14 +273,42 @@ class CodeGenerator(BaseVisitor,Utils):
         # receiver: str
         # recType: Type 
         # fun: FuncDecl
-        pass
+        
+        self.function = ast.fun
+        frame = Frame(ast.fun.name, ast.fun.retType)
+        mtype = MType(list(map(lambda x: x.parType, ast.fun.params)), ast.fun.retType)
+        
+        env = o.copy()
+        env['frame'] = frame
+        self.emit.printout(self.emit.emitMETHOD(ast.fun.name, mtype,False, frame))
+        frame.enterScope(True) 
+
+        self.emit.printout(self.emit.emitVAR("this",Id("this"),env['frame'].getStartLabel(),env['frame'].getEndLable(),env['frame'])) 
+        self.emit.printout(self.emit.emitLABEL(frame.getStartLabel(), frame))
+        if ast.receiver is None:
+            self.emit.printout(self.emit.emitREADVAR("this", Id("java.lang.Object.super"), 0, frame))  
+            self.emit.printout(self.emit.emitINVOKESPECIAL(frame))  
+
+        env['env'] = [[]] + env['env']
+        # env = reduce(lambda acc,e: self.visit(e,acc),ast.params,env)
+        env = reduce(lambda acc,e: self.visit(e,acc),ast.fun.params,env)  
+
+        self.visit(ast.fun.body, env) #duyệt block thân hàm
+
+
+        self.emit.printout(self.emit.emitLABEL(frame.getEndLabel(), frame))
+        if type(ast.fun.retType) is VoidType:
+            self.emit.printout(self.visit(Return(None),env)) 
+        self.emit.printout(self.emit.emitENDMETHOD(frame))
+        frame.exitScope()
+        return o
     
     def visitPrototype(self, ast, o):
         # name: str
         # params:List[Type]
         # retType: Type # VoidType if there is no return type
-
-        pass    
+        pass
+         
 
     def visitIntType(self, ast, o):
         return ast
@@ -299,11 +335,33 @@ class CodeGenerator(BaseVisitor,Utils):
         return codeGen, ast
 
     
-    def visitStructType(self, ast, o):
-        return ast
+    def visitStructType(self, ast: StructType, o):
+        # name: str
+        # elements:List[Tuple[str,Type]]
+        # methods:List[MethodDecl]
+        self.emit.printout(self.emit.emitPROLOG(f"{ast.name}", "java.lang.Object"))
+        for item in self.list_type.values(): # Lặp qua các type đc khai báo(interface/struct)
+            if item.name == ast.name and self.checkType(item, ast, [(InterfaceType, StructType)]): 
+                self.emit.printout("TODO") # Sinh ra đoạn .implement ___ như ở ví dụ bên trên.
+        for item in ast.elements:
+            self.emit.printout(self.emit.emitATTRIBUTE(item[0],item[1], False, False, None))
+
+        self.visit(MethodDecl(None, None, FuncDecl("<init>", [ParamDecl(item[0],item[1]) for item in ast.elements], VoidType(),
+                                                   
+                            Block([VarDecl(item[0],item[1],None) for item in ast.elements]))), o)   
+           
+        self.visit(MethodDecl(None, None, FuncDecl("<init>",[],VoidType()), o))
+        for item in ast.methods: self.visit(item, o)
+        self.emit.printout(self.emit.emit) # kết thúc khai báo của struct
 
     def visitInterfaceType(self, ast, o):
-        return ast
+        # name: str
+        # methods:List[Prototype]
+        self.emit.printout(self.emit.emitPROLOG(ast.name, "java.lang.Object", True))
+        for item in ast.methods:
+            self.emit.emitprintout(self.visit(item,o)[0])
+            self.emit.emitprintout(self.emit.emitENDMETHOD(o['frame']))
+        self.emit.printout(self.emit.emitEPILOG())
 
     def visitBlock(self, ast, o):
         #member:List[BlockMember]
@@ -501,7 +559,13 @@ class CodeGenerator(BaseVisitor,Utils):
     def visitFieldAccess(self, ast, o):
         # receiver:Expr
         # field:str
-        pass
+
+        code, typ = self.visit(ast.receiver, o)
+
+        found = next(filter(lambda x: x.name == typ.name, self.list_type),None)
+        found1 = next(filter(lambda x: x[0] == ast.field, found.elements),None)
+        return code + self.emit.emitGETFIELD(f"java.lang.Object.{found.name}{found1[0]}", found1[1],o['frame']), found1[1] 
+
 
     def visitBinaryOp(self, ast, o):
         # op:str
@@ -578,7 +642,36 @@ class CodeGenerator(BaseVisitor,Utils):
         # metName: str
         # args:List[Expr]
 
-        pass
+        code, typ = self.visit(ast.receiver, o)
+        if isinstance(typ, Id):
+            typ = self.list_type.get(typ.name)
+
+        # 3. Kiểm tra xem lời gọi phương thức này có phải là một statement hay một expression
+        is_stmt = o.pop("stmt", False)
+
+        # 4. Tạo mã cho các đối số của phương thức.
+        for arg in ast.args:
+            code += self.visit(arg, o)[0]
+
+        returnType = None
+        if isinstance(typ, StructType):
+            method = next(filter(lambda x: x.name == ast.metName, typ.methods), None)
+            mtype = MType(list([item.parType for item in method.fun.params]), method.fun.retType)
+            returnType = method.fun.retType
+            self.emit.printout(self.emit.emitINVOKEVIRTUAL(f"{typ.name}/{ast.metName}", mtype, o['frame']))
+            code += self.emit.emitINVOKEVIRTUAL("TODO", mtype, o['frame'])
+            
+        elif isinstance(typ, InterfaceType):
+            method = next(filter(lambda x: x.name == ast.metName, typ.methods), None)
+            
+            mtype = MType(list([item for item in method.params]), method.retType)
+            returnType = method.retType
+            code += self.emit.emitINVOKEINTERFACE(f"TODO", mtype, o['frame'])
+        
+        if is_stmt:
+            self.emit.printout(code)
+            return o
+        return code, returnType
 
     def visitIntLiteral(self, ast, o):
         return self.emit.emitPUSHICONST(ast.value,o['frame']),IntType()
@@ -637,10 +730,29 @@ class CodeGenerator(BaseVisitor,Utils):
     def visitStructLiteral(self, ast, o):
         #name:str
         #elements: List[Tuple[str,Expr]]
-        pass
+        code = self.emit.emitNEW(ast.name, o['frame'])
+        code += self.emit.emitDUP(o['frame'])
+        list_type = []
+        for item in ast.elements:
+            # Xử lý từng thành phần (field và giá trị) của struct literal.
+            # Gợi ý:
+            # 1. Gọi self.visit(item[1], o) để lấy mã và kiểu của giá trị khởi tạo (item[1]).
+            # 2. Thêm mã này vào 'code'.
+            # 3. Thêm kiểu của giá trị khởi tạo vào 'list_type'.
+            c, t = self.visit(item[1], o)
+            code += c
+            list_type += t
+
+        # Gọi constructor của struct.
+        # Gợi ý:
+        # 1. Tạo MType cho constructor dựa trên 'list_type' (kiểu của các tham số).
+        # 2. Sử dụng self.emit.emitINVOKESPECIAL để gọi constructor của struct (ast.name/<init>).
+        code += self.emit.emitINVOKESPECIAL(o['frame'], f"{ast.name}/<init>", MType(list_type, VoidType()) if len(ast.elements) else MType([], VoidType()), o['frame'])
+        return code, Id(ast.name)
 
     def visitNilLiteral(self, ast, o):
-        pass
+        code = self.emit.emitPUSHNULL(o['frame'])
+        return code, Id("")
 
     def calculateIntLiteral(self, ast, o):
 
@@ -683,3 +795,53 @@ class CodeGenerator(BaseVisitor,Utils):
             return visitId(self,ast,o)
         else :
             return IntLiteral(0)
+
+    def checkType(self, LSH_type: Type, RHS_type: Type, list_type_permission: List[Tuple[Type, Type]] = []) -> bool:
+        # Kiểm tra xem hai kiểu có tương thích hay không.
+        # Gợi ý:
+        # 1. Xử lý trường hợp RHS_type là StructType có tên rỗng (thường là nil literal).
+        if type(RHS_type) == StructType and RHS_type.name == "":
+            #  nil có thể gán cho InterfaceType, StructType hoặc Id.
+            return "TODO"
+
+        # Resolve Id types thành kiểu thực tế từ self.list_type.
+        LSH_type = self.lookup("TODO", self.list_type.values(), lambda x: "TODO") if isinstance(LSH_type, Id) else LSH_type
+        RHS_type = self.lookup("TODO", self.list_type.values(), lambda x: "TODO") if isinstance(RHS_type, Id) else RHS_type
+
+        #  Kiểm tra các trường hợp dựa trên danh sách các cặp kiểu cho phép.
+        if (type(LSH_type), type(RHS_type)) in list_type_permission:
+            # Xử lý kiểm tra tương thích giữa InterfaceType và StructType.
+            if isinstance(LSH_type, InterfaceType) and isinstance(RHS_type, StructType):
+                #  Kiểm tra xem StructType có implement tất cả các phương thức của InterfaceType không.
+                return all(
+                    any(
+                        # So sánh tên, kiểu trả về và kiểu tham số của phương thức.
+                        struct_methods.fun.name == inteface_method.name and
+                        self.checkType(struct_methods.fun.retType, inteface_method.retType) and
+                        len(struct_methods.fun.params) == len(inteface_method.params) and
+                        reduce(
+                            lambda x, i: x and self.checkType(struct_methods.fun.params[i].parType, inteface_method.params[i]),
+                            range(len(struct_methods.fun.params)),
+                            True
+                        )
+                        for struct_methods in RHS_type.methods
+                    )
+                    for inteface_method in LSH_type.methods
+                )
+            # Kiểm tra tương thích giữa hai InterfaceType hoặc hai StructType.
+            if isinstance(LSH_type, ("TODO")) and isinstance(RHS_type, ("TODO")):
+                # Hai kiểu này tương thích nếu chúng có cùng tên.
+                return "TODO"
+
+        #  Kiểm tra tương thích giữa hai ArrayType.
+        if isinstance(LSH_type, ArrayType) and isinstance(RHS_type, ArrayType):
+            # Hai kiểu mảng tương thích nếu số chiều bằng nhau, kích thước các chiều tương ứng bằng nhau và kiểu phần tử tương thích.
+            return ("TODO" == "TODO"
+                    and all(
+                        l.value == r.value  for l, r in zip(LSH_type.dimens, RHS_type.dimens)
+                    )
+                    and self.checkType("TODO", "TODO", [list_type_permission[0]] if len(list_type_permission) != 0 else []))
+
+        #  Kiểm tra tương thích giữa các kiểu cơ bản (IntType, FloatType, StringType, BoolType).
+        # Gợi ý: Hai kiểu cơ bản tương thích nếu chúng cùng loại.
+        return "TODO"

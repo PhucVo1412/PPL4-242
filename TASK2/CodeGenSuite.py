@@ -521,4 +521,39 @@ func main() {
 110
 111
 """, inspect.stack()[0].function))
+        
+        def test_543(self):
+            input = """func Phuc() {putStringLn("Phuc");}
+
+        var gl = int1()
+        func main() {
+            Phuc();
+            putFloatLn(global + 2.0)
+
+            var local1 = "a";
+            putBoolLn(local <= "b")
+            local1 += "c"
+            putStringLn(local1)
+
+        };
+
+         func int1() int {return 1;}
+         """
+            self.assertTrue(TestCodeGen.test(input,"Phuc\n3.0\ntrue\nac\n",inspect.stack()[0].function))
+
+    def test_544(self):
+        input = """
+        
+type Course interface {study();}
+type PPL3 struct {number int;}
+func (p PPL3) study() {putInt(p.number);}
+
+func main(){
+    var a PPL3 = PPL3 {number: 10}
+    putIntLn(a.number)
+    a.study()
+}
+        
+        """
+        self.assertTrue(TestCodeGen.test(input,"10\n10",inspect.stack()[0].function))
     
