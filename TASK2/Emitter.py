@@ -65,6 +65,8 @@ class Emitter():
             return "Z"
         elif typeIn is VoidType:
             return "V"
+        elif typeIn is Id:
+            return inType.name
         elif typeIn is ArrayType:
             return "".join(["[" for x in range(len(inType.dimens))]) + self.getJVMType(inType.eleType)
         elif typeIn is MType:
@@ -268,7 +270,7 @@ class Emitter():
         if isStatic:
             return self.jvm.emitSTATICFIELD(lexeme, self.getJVMType(in_), isFinal, value)
         else:
-            return self.jvm.emitFIELD(lexeme, self.getJVMType(in_), isFinal, value)
+            return self.INDENT + "field public" + lexeme + " " + self.getJVMType(in_) + self.END
 
     def emitGETSTATIC(self, lexeme, in_, frame):
         #lexeme: String
@@ -759,6 +761,14 @@ class Emitter():
         frame.push()
         return self.jvm.emitPUSHNULL()
 
+    def emitIMPLEMENT(self,lexeme, frame):
+        return  self.INDENT + "implements " + lexeme + self.END
+
+
+    def emitABSTRACTMETHOD(self, lexeme, in_,retType, frame):
+        #lexeme:str
+        #in_: list(Type)
+        return self.INDENT + "method public abstract " + lexeme + "".join([self.getJVMType(i) for i in in_]) + self.getJVMType(retType) +  self.END
 
     ''' print out the code to screen
     *   @param in the code to be printed out
