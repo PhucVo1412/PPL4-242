@@ -3,9 +3,10 @@ from StaticCheck import *
 from StaticError import *
 import CodeGenerator as cgen
 from MachineCode import JasminCode
+from AST import *
+from Visitor import *
 
-
-
+   
 class Emitter():
     END = "\n"
     INDENT = "\t"
@@ -61,9 +62,9 @@ class Emitter():
             elif i >= -32768 and i <= 32767:
                 return self.jvm.emitSIPUSH(i)
         elif type(in_) is str:
-            if in_ == "true":
+            if in_ == "true" or in_ == "True":
                 return self.emitPUSHICONST(1, frame)
-            elif in_ == "false":
+            elif in_ == "False" or in_ == "false":
                 return self.emitPUSHICONST(0, frame)
             else:
                 return self.emitPUSHICONST(int(in_), frame)
@@ -106,8 +107,12 @@ class Emitter():
         #..., arrayref, index, value -> ...
         
         frame.pop()
-        if type(in_) is IntType:
+        if type(in_) is IntType :
             return self.jvm.emitIALOAD()
+        elif type(in_) is BoolType:
+            return self.jvm.emitBALOAD()
+        elif type(in_) is FloatType:
+            return self.jvm.emitFALOAD()
         elif type(in_) is cgen.ArrayType or type(in_) is cgen.ClassType or type(in_) is StringType:
             return self.jvm.emitAALOAD()
         else:
@@ -121,8 +126,12 @@ class Emitter():
         frame.pop()
         frame.pop()
         frame.pop()
-        if type(in_) is IntType:
+        if type(in_) is IntType :
             return self.jvm.emitIASTORE()
+        elif type(in_) is FloatType:
+            return self.jvm.emitFASTORE()
+        elif type(in_) is BoolType:
+            return self.jvm.emitBASTORE()
         elif type(in_) is cgen.ArrayType or type(in_) is cgen.ClassType or type(in_) is StringType:
             return self.jvm.emitAASTORE()
         else:
@@ -488,7 +497,8 @@ class Emitter():
         #..., value1, value2 -> ..., result
 
         result = list()
-
+        trueLabel = str(trueLabel)
+        falseLabel = str(falseLabel)
         frame.pop()
         frame.pop()
         if op == ">":
@@ -619,18 +629,21 @@ class Emitter():
     def emitRETURN(self, in_, frame):
         #in_: Type
         #frame: Frame
-
-        if type(in_) is IntType:
+        
+        if type(in_) is IntType or type(in_) is BoolType:
             frame.pop()
             return self.jvm.emitIRETURN()
         elif type(in_) is FloatType:
             frame.pop()
-            return self.jvm.emitFRETURN()
+            return self.jvm.emitFRETURN()  
+        elif type(in_) is StringType:
+            frame.pop()
+            return self.jvm.emitARETURN()                 
+        elif type(in_) is VoidType:
+            return self.jvm.emitRETURN()
         elif type(in_) is ArrayType:
             frame.pop()
             return self.jvm.emitARETURN()
-        elif type(in_) is VoidType:
-            return self.jvm.emitRETURN()
 
     ''' generate code that represents a label	
     *   @param label the label
@@ -649,7 +662,7 @@ class Emitter():
     def emitGOTO(self, label, frame):
         #label: Int
         #frame: Frame
-
+        label = str(label)
         return self.jvm.emitGOTO(label)
 
     ''' generate some starting directives for a class.<p>
@@ -685,11 +698,22 @@ class Emitter():
 
     def emitNEWARRAY(self, in_, frame):
         if type(in_) is IntType:
-          return self.jvm.emitNEWARRAY("int") 
+            return self.jvm.emitNEWARRAY("int") 
+        elif type(in_) is FloatType:
+            return self.jvm.emitNEWARRAY("float")
+        elif type(in_) is StringType:
+            return self.jvm.emitNEWARRAY("java/lang/String")
+        elif type(in_) is BoolType:
+            return self.jvm.emitNEWARRAY("boolean")
         return
     
     def emitANEWARRAY(self, in_, frame):
-        return self.jvm.emitANEWARRAY("int")   
+        #in_: Type
+        #frame: Frame
+        lexeme = self.getJVMType(in_)
+        return self.jvm.emitANEWARRAY(lexeme)
+    
+        raise IllegalOperandException(str(in_)) 
 
     ''' print out the code to screen
     *   @param in the code to be printed out
@@ -703,7 +727,3 @@ class Emitter():
         self.buff.clear()
 
 
-
-
-
-        

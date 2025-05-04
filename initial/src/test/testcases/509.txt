@@ -5,6 +5,5 @@
         };
         func main() {
             foo(2, 3);
-        };
-        func foo1() int {return 1;};
-                
+            }
+        

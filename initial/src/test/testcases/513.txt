@@ -1,6 +1,7 @@
 
         func main() {
-            putIntLn(5 % 2)
-            putIntLn(2 % 5)
+            var a1 int = 5;
+            var a2 int = 7;
+            putInt(a1 * a2)
         }
-        
+         

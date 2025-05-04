@@ -7,6 +7,7 @@ Label0:
 Label2:
 	iconst_1
 	ireturn
+	return
 Label3:
 Label1:
 .limit stack 2

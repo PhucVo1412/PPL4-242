@@ -6,20 +6,20 @@
 Label0:
 .var 0 is args [Ljava/lang/String; from Label0 to Label1
 Label2:
-.var 1 is a I from Label2 to Label3
-	iconst_3
+.var 1 is f Z from Label2 to Label3
+	iconst_1
 	istore_1
-.var 2 is b I from Label2 to Label3
-	iconst_4
+.var 2 is g Z from Label2 to Label3
+	iconst_0
 	istore_2
 	iload_1
+	invokestatic io/putBoolLn(Z)V
 	iload_2
-	iadd
-	invokestatic io/putInt(I)V
+	invokestatic io/putBool(Z)V
 Label3:
 Label1:
 	return
-.limit stack 2
+.limit stack 3
 .limit locals 3
 .end method
 

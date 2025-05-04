@@ -741,13 +741,13 @@ class CodeGenerator(BaseVisitor,Utils):
             # 3. Thêm kiểu của giá trị khởi tạo vào 'list_type'.
             c, t = self.visit(item[1], o)
             code += c
-            list_type += t
+            list_type += [t]
 
         # Gọi constructor của struct.
         # Gợi ý:
         # 1. Tạo MType cho constructor dựa trên 'list_type' (kiểu của các tham số).
         # 2. Sử dụng self.emit.emitINVOKESPECIAL để gọi constructor của struct (ast.name/<init>).
-        code += self.emit.emitINVOKESPECIAL(o['frame'], f"{ast.name}/<init>", MType(list_type, VoidType()) if len(ast.elements) else MType([], VoidType()), o['frame'])
+        code += self.emit.emitINVOKESPECIAL(o['frame'], f"{ast.name}/<init>", MType(list_type, VoidType()) if len(ast.elements) else MType([], VoidType()))
         return code, Id(ast.name)
 
     def visitNilLiteral(self, ast, o):
@@ -784,7 +784,6 @@ class CodeGenerator(BaseVisitor,Utils):
             sym = next(filter(lambda x: x.name == ast.name, [j for i in o['env'] for j in i]),None)      
             return IntLiteral(sym.initValue.value)
 
-
         if type(ast) is IntLiteral:
             return ast
         elif type(ast) is BinaryOp:
@@ -796,23 +795,15 @@ class CodeGenerator(BaseVisitor,Utils):
         else :
             return IntLiteral(0)
 
-    def checkType(self, LSH_type: Type, RHS_type: Type, list_type_permission: List[Tuple[Type, Type]] = []) -> bool:
-        # Kiểm tra xem hai kiểu có tương thích hay không.
-        # Gợi ý:
-        # 1. Xử lý trường hợp RHS_type là StructType có tên rỗng (thường là nil literal).
+    def checkType(self, LSH_type, RHS_type, list_type_permission) :
         if type(RHS_type) == StructType and RHS_type.name == "":
-            #  nil có thể gán cho InterfaceType, StructType hoặc Id.
-            return "TODO"
+            return True
 
-        # Resolve Id types thành kiểu thực tế từ self.list_type.
-        LSH_type = self.lookup("TODO", self.list_type.values(), lambda x: "TODO") if isinstance(LSH_type, Id) else LSH_type
-        RHS_type = self.lookup("TODO", self.list_type.values(), lambda x: "TODO") if isinstance(RHS_type, Id) else RHS_type
+        LSH_type = self.lookup(LSH_type.name, self.list_type.values(), lambda x: x.name  ) if isinstance(LSH_type, Id) else LSH_type
+        RHS_type = self.lookup(RHS_type.name, self.list_type.values(), lambda x: x.name  ) if isinstance(RHS_type, Id) else RHS_type
 
-        #  Kiểm tra các trường hợp dựa trên danh sách các cặp kiểu cho phép.
         if (type(LSH_type), type(RHS_type)) in list_type_permission:
-            # Xử lý kiểm tra tương thích giữa InterfaceType và StructType.
             if isinstance(LSH_type, InterfaceType) and isinstance(RHS_type, StructType):
-                #  Kiểm tra xem StructType có implement tất cả các phương thức của InterfaceType không.
                 return all(
                     any(
                         # So sánh tên, kiểu trả về và kiểu tham số của phương thức.
@@ -829,19 +820,20 @@ class CodeGenerator(BaseVisitor,Utils):
                     for inteface_method in LSH_type.methods
                 )
             # Kiểm tra tương thích giữa hai InterfaceType hoặc hai StructType.
-            if isinstance(LSH_type, ("TODO")) and isinstance(RHS_type, ("TODO")):
-                # Hai kiểu này tương thích nếu chúng có cùng tên.
-                return "TODO"
+            if isinstance(LSH_type, (StructType,InterfaceType)) and isinstance(RHS_type, (StructType,InterfaceType)):
+                return LHS_type.name == RHS_type.name 
 
-        #  Kiểm tra tương thích giữa hai ArrayType.
         if isinstance(LSH_type, ArrayType) and isinstance(RHS_type, ArrayType):
-            # Hai kiểu mảng tương thích nếu số chiều bằng nhau, kích thước các chiều tương ứng bằng nhau và kiểu phần tử tương thích.
-            return ("TODO" == "TODO"
+            return (len(LHS.dimens) == len(RHS.dimens)
                     and all(
                         l.value == r.value  for l, r in zip(LSH_type.dimens, RHS_type.dimens)
                     )
                     and self.checkType("TODO", "TODO", [list_type_permission[0]] if len(list_type_permission) != 0 else []))
 
-        #  Kiểm tra tương thích giữa các kiểu cơ bản (IntType, FloatType, StringType, BoolType).
-        # Gợi ý: Hai kiểu cơ bản tương thích nếu chúng cùng loại.
-        return "TODO"
+        if type(LSH_type) == type(RHS_type):
+            return True
+        
+        if isinstance(LSH_type, FloatType) and isinstance(RHS_type, IntType):
+            return True
+
+        return False

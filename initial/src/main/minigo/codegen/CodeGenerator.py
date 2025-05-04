@@ -12,6 +12,7 @@ from Visitor import *
 from AST import *
 
 
+    
 class Val(ABC):
     pass
 
@@ -34,7 +35,16 @@ class ClassType(Type):
     def accept(self, v, param):
         return v.visitClassType(self, param)
 
-    
+class Symbol:
+    def __init__(self,name,mtype,value, init1 = None):
+        self.name = name
+        self.mtype = mtype
+        self.value = value
+        self.initValue = init1
+
+    def __str__(self):
+        return "Symbol(" + str(self.name) + "," + str(self.mtype) + ("" if self.value is None else "," + str(self.value)) + ")"
+
 class CodeGenerator(BaseVisitor,Utils):
     def __init__(self):
         self.className = "MiniGoClass" 
@@ -94,7 +104,8 @@ class CodeGenerator(BaseVisitor,Utils):
         self.emit.printout(self.emit.emitLABEL(frame.getStartLabel(), frame))
 
         env['frame'] = frame
-        self.visit(Block([Assign(Id(item.varName), item.varInit) for item in ast.decl if isinstance(item, VarDecl) and item.varInit]  ),env)
+        self.visit(Block([Assign(Id(item.varName), item.varInit) for item in ast.decl if isinstance(item, VarDecl) and item.varInit]  +
+                         [Assign(Id(item.conName), item.iniExpr) for item in ast.decl if isinstance(item, ConstDecl) and item.iniExpr]),env)
         
         self.emit.printout(self.emit.emitLABEL(frame.getEndLabel(), frame))
         self.emit.printout(self.emit.emitRETURN(VoidType(), frame))  
@@ -110,7 +121,7 @@ class CodeGenerator(BaseVisitor,Utils):
         self.emit.printout(self.emit.emitPROLOG(self.className, "java.lang.Object"))
         env = reduce(lambda a, x: self.visit(x, a) if isinstance(x, VarDecl) or  isinstance(x, ConstDecl) else a, ast.decl, env)
 
-        reduce(lambda a, x: self.visit(x, a) if isinstance(x, FuncDecl) else a, ast.decl, env)
+        env = reduce(lambda a, x: self.visit(x, a) if isinstance(x, FuncDecl) else a, ast.decl, env)
 
         self.emitObjectInit()
         self.emitObjectCInit(ast,env)
@@ -124,7 +135,7 @@ class CodeGenerator(BaseVisitor,Utils):
         # parType: Type
         frame = o['frame']
         index = frame.getNewIndex()
-        o['env'][0].append(Symbol(ast.parName, ast.parType, Index(index)))
+        o['env'][0].append(Symbol(ast.parName, ast.parType, Index(index),IntLiteral(0) if type(ast.parType) is IntType else None))
         self.emit.printout(self.emit.emitVAR(index, ast.parName, ast.parType, frame.getStartLabel() ,frame.getEndLabel(), frame))     
         return o
 
@@ -141,38 +152,70 @@ class CodeGenerator(BaseVisitor,Utils):
             elif type(varType) is StringType:
                 return StringLiteral("\"\"")
             elif type(varType) is BoolType:
-                return BooleanLiteral("false")
+                return BooleanLiteral(False)
             elif type(varType) is ArrayType:
-                pass #TODO
+                dimensions = varType.dimens
+                
+                # Base case: if no dimensions left, initialize the element type
+                if not dimensions:
+                    return create_init(varType.eleType, o)
+                    
+                # Extract dimension sizes (assuming dimensions are IntLiteral)
+                dim_sizes = []
+                for dim in dimensions:
+                    if type(dim) is IntLiteral:
+                        dim_sizes.append(dim.value)
+                    elif type(dim) is Id:
+                        sym = next(filter(lambda x: x.name == dim.name, [j for i in o['env'] for j in i]), None)
+                        dim_sizes.append(sym.initValue.value) 
+                    elif type(dim) is ArrayCell:
+                        sym = next(filter(lambda x: x.name == dim.arr.name, [j for i in o['env'] for j in i]), None)
+                        ids = []
+                        for id in dim.idx:
+                            ids += [id.value]
 
+                        val = sym.initValue.value
+                        for index in ids:
+                            val = val[index]
+                        dim_sizes.append(val.value) 
+                        
+                def build_array(dims, eleType):
+                    if len(dims) == 1:
+                        # Innermost dimension: create elements of eleType
+                        return [create_init(eleType, o) for _ in range(dims[0])]
+                    else:
+                        # Recursively build sub-arrays for higher dimensions
+                        return [build_array(dims[1:], eleType) for _ in range(dims[0])]
+                        
+                # Generate the nested array structure
+                elements = build_array(dim_sizes, varType.eleType)
+                
+                return ArrayLiteral(dimensions, varType.eleType, elements)
 
+                
         varInit = ast.varInit 
         varType = ast.varType 
 
         if not varInit:
             varInit = create_init(varType, o)
-            if type(varType) is ArrayType:
-                varInit = ArrayLiteral(varType.dimens, varType.dimens, varInit)
             ast.varInit = varInit
-
-
-            ast.varInit = varInit
+        
         env = o.copy()
-        env['frame'] = Frame("<template_VT>", VoidType()) 
+        env['frame'] = Frame("<Mytemplate>", VoidType()) 
 
         rhsCode, rhsType = self.visit(varInit, env)
-
         if not varType:
             varType = rhsType
 
         if 'frame' not in o: # TH global var 
-            o['env'][0].append(Symbol(ast.varName, varType, CName(self.className)))
+            o['env'][0].append(Symbol(ast.varName, varType,CName(self.className), self.calculateIntLiteral(ast.varInit,o) if type(varType) is IntType else ast.varInit))
             self.emit.printout(self.emit.emitATTRIBUTE(ast.varName, varType, True, False, None))
         else:
             frame = o['frame']
 
             index = frame.getNewIndex()
-            o['env'][0].append(Symbol(ast.varName, varType, Index(index))) 
+            o['env'][0].append(Symbol(ast.varName, varType,Index(index), self.calculateIntLiteral(ast.varInit,o) if type(varType) is IntType else ast.varInit )) 
+
 
 
             self.emit.printout(self.emit.emitVAR(index, ast.varName, varType, frame.getStartLabel(), frame.getEndLabel(), frame))  
@@ -185,22 +228,9 @@ class CodeGenerator(BaseVisitor,Utils):
         return o
 
     
-    def visitConstDecl(self, ast, o):
-        # conName : str
-        # conType : Type # None if there is no type 
-        # iniExpr : Expr
-        if 'frame' not in o: # global var
-            o['env'][0].append(Symbol(ast.conName, ast.conType, CName(self.className)))
-            self.emit.printout(self.emit.emitATTRIBUTE(ast.conName, ast.conType, True, True, str(ast.iniExpr.value) if ast.iniExpr else None))
-        else:
-            frame = o['frame']
-            index = frame.getNewIndex()
-            o['env'][0].append(Symbol(ast.conName, ast.conType, Index(index)))
-            self.emit.printout(self.emit.emitVAR(index, ast.conName, ast.conType, frame.getStartLabel(), frame.getEndLabel(), frame))  
-            if ast.iniExpr:
-                self.emit.printout(self.emit.emitPUSHICONST(ast.iniExpr.value, frame))
-                self.emit.printout(self.emit.emitWRITEVAR(ast.conName, ast.conType, index,  frame))
-        return o
+    def visitConstDecl(self, ast, o) :
+        return self.visit(VarDecl(ast.conName, ast.conType, ast.iniExpr), o)
+
 
     def visitFuncDecl(self, ast, o):
         # name: str
@@ -213,10 +243,9 @@ class CodeGenerator(BaseVisitor,Utils):
         frame = Frame(ast.name, ast.retType)
 
         isMain = ast.name == "main"
-        isMain = ast.name == "main"
         if isMain:
             mtype = MType([ArrayType([None],StringType())], VoidType())
-            ast.body = Block([] + ast.body.member)
+            #ast.body = Block([] + ast.body.member)
         else:
             mtype = MType(list(map(lambda x: x.parType, ast.params)), ast.retType)
 
@@ -270,11 +299,11 @@ class CodeGenerator(BaseVisitor,Utils):
         return ast
 
     def visitArrayType(self, ast, o):
-        # arr:Expr
-        # idx:List[Expr]
+        #dimens:List[Expr]
+        #eleType:Type
         codeGen = ""
-        # TODO : Lặp qua dimens để thêm code vào codeGen, dùng visit và lưu ý rằng visit sẽ trả về cặp mã và kiểu của nó.
-        # Cuối cùng đủ tham số thì dùng emitMULTIANEWARRAY để tạo mảng mới.
+        for item in ast.dimens:
+            codeGen += self.visit(item, o)[0]
         codeGen += self.emit.emitMULTIANEWARRAY(ast, o['frame'])
         return codeGen, ast
 
@@ -290,6 +319,8 @@ class CodeGenerator(BaseVisitor,Utils):
 
         env = o.copy()
         env['env'] = [[]] + env['env']
+
+
         env['frame'].enterScope(False)
 
         self.emit.printout(self.emit.emitLABEL(env['frame'].getStartLabel(), env['frame']))
@@ -310,34 +341,30 @@ class CodeGenerator(BaseVisitor,Utils):
         if type(ast.lhs) is Id and not next(filter(lambda x: x.name == ast.lhs.name, [sym for env in o['env'] for sym in env]), None) :
             return self.visit(VarDecl(ast.lhs.name,None,ast.rhs),o)
 
-        
         rhsCode, rhsType = self.visit(ast.rhs, o)
         o['isLeft'] = True
         lhsCode, lhsType = self.visit(ast.lhs, o) 
         o['isLeft'] = False
 
         if type(lhsType) is FloatType and type(rhsType) is IntType:
-            rhscode += self.emit.emitI2F(o['frame'])
+            rhsCode += self.emit.emitI2F(o['frame'])
+
         o['frame'].push()
-        self.emit.printout(rhsCode)
-        self.emit.printout(lhsCode)
-        return o
 
 
-        # if type(ast.lhs) is ArrayCell:
-        #     self.emit.printout(code1)
-        #     self.emit.printout(rhsCode)
-        #     self.emit.printout(self.emit.emitASTORE("TODO")) # lưu vào mảng, truyền vào mảng và o['frame'].Gợi ý, khi visit lhs ta có visitAarrayCell và dùng self.. để lưu mảng đang xét
-        # # access id
-        # else:
-        #     self.emit.printout(rhsCode)
-        #     self.emit.printout(lhsCode)
-
-        # return o
-
+        if type(ast.lhs) is ArrayCell:
+            o['frame'].push()
+            o['frame'].push()
+            self.emit.printout(lhsCode)
+            self.emit.printout(rhsCode)
+            self.emit.printout(self.emit.emitASTORE(lhsType,o['frame']))
+            o['frame'].pop()
+            o['frame'].pop()
+        else:
+            self.emit.printout(rhsCode)
+            self.emit.printout(lhsCode)
 
         return o
-
 
     
     def visitIf(self, ast, o):
@@ -348,23 +375,20 @@ class CodeGenerator(BaseVisitor,Utils):
         self.emit.printout(code)
 
         Label0 = o['frame'].getNewLabel()
-        if ast.elseStmt:
-            Label1 = o['frame'].getNewLabel()
-
-        code = self.emit.emitIFFALSE(Label0,o['frame'])
-        self.emit.printout(code)
-
+        Label1 = o['frame'].getNewLabel() if ast.elseStmt else None
+ 
+        self.emit.printout(self.emit.emitIFFALSE(Label0,o['frame']))
         self.visit(ast.thenStmt,o)
 
         if ast.elseStmt:    
-            code = self.emit.emitGOTO(Label1,o['frame'])
+            self.emit.printout(self.emit.emitGOTO(Label1,o['frame']))
 
-        self.emit.emitLABEL(Label0,o['frame'])
+        self.emit.printout(self.emit.emitLABEL(Label0,o['frame']))
 
         if ast.elseStmt:
-            self.visit(self.elseStmt,o['frame'])
+            self.visit(ast.elseStmt,o)
 
-        self.emit.emitLABEL(Label1,o['frame'])
+        self.emit.printout(self.emit.emitLABEL(Label1,o['frame']))
         return o
 
 
@@ -373,23 +397,19 @@ class CodeGenerator(BaseVisitor,Utils):
         # cond:Expr
         # loop:Block
         o['frame'].enterLoop()
+        NewLabel = o['frame'].getNewLabel()
         ConLabel = o['frame'].getContinueLabel()
-        BreakLabel = o['frame'].getBreakLable()
+        BreakLabel = o['frame'].getBreakLabel()
 
-        code = self.emit.emitLABEL(ConLabel)
-        self.emit.printout(code)
+        self.emit.printout(self.emit.emitLABEL(ConLabel,o['frame']))
+        self.emit.printout(self.visit(ast.cond,o)[0])
+        self.emit.printout(self.emit.emitIFFALSE(NewLabel,o['frame']))
 
-        code,typ = self.visit(ast.cond,o)
-        self.emit.printout(code)
+        self.visit(ast.loop,o)
 
-        code = self.emit.emitIFFALSE(BreakLabel,o['frame'])
-
-        self.visit(ast.loop,o['frame'])
-
-        code = self.emit.emitGOTO(ConLabel,o['frame'])
-        self.emit.printout(code)
-
-        self.emit.emitLABEL(BreakLabel)
+        self.emit.printout(self.emit.emitGOTO(ConLabel,o['frame']))
+        self.emit.printout(self.emit.emitLABEL(NewLabel,o['frame']))
+        self.emit.printout(self.emit.emitLABEL(BreakLabel,o['frame']))
         o['frame'].exitLoop()
         return o
 
@@ -398,24 +418,29 @@ class CodeGenerator(BaseVisitor,Utils):
         # cond:Expr
         # upda:Assign
         # loop:Block
-        o['frame'].enterLoop()
+        env = o.copy()
+        env['env'] = [[]] + env['env']
 
-        ContinueLabel = o['frame'].getContinueLabel()
-        BreakLabel = o['frame'].getBreakLabel()
+        env['frame'].enterLoop()
+        ContinueLabel = env['frame'].getContinueLabel()
+        BreakLabel = env['frame'].getBreakLabel()
+        NewLabel = env['frame'].getNewLabel()
 
-        self.visit(ast.init,o)
+        self.visit(ast.init,env)
 
-        self.emit.printout(self.emit.emitLABEL(ContinueLabel,o['frame']))
-        self.visit(ast.cond,o)
-        self.emit.printout(self.emit.emitIFFALSE(BreakLabel,o['frame']))
+        self.emit.printout(self.emit.emitLABEL(NewLabel,env['frame']))
+        self.emit.printout(self.visit(ast.cond,env)[0])
+        self.emit.printout(self.emit.emitIFFALSE(BreakLabel,env['frame']))
 
-        self.visit(ast.loop,o)
-        self.visit(ast.upda,o)
-        self.emit.printout(self.emit.emitGOTO(ContinueLabel, o['frame']))
+        self.visit(ast.loop,env)
 
-        self.emit.printout(self.emit.emitLABEL(BreakLabel,o['frame']))
+        self.emit.printout(self.emit.emitLABEL(ContinueLabel,env['frame']))
+        self.visit(ast.upda,env)
+        self.emit.printout(self.emit.emitGOTO(NewLabel, env['frame']))
 
-        o['frame'].exitLoop()
+        self.emit.printout(self.emit.emitLABEL(BreakLabel,env['frame']))
+
+        env['frame'].exitLoop()
         return o
 
     def visitBreak(self, ast, o):
@@ -430,7 +455,8 @@ class CodeGenerator(BaseVisitor,Utils):
         #expr:Expr 
         if ast.expr:
             self.emit.printout(self.visit(ast.expr, o)[0])
-        self.emit.printout(self.emit.emitRETURN(self.visit(ast.expr, o)[1],o['frame']))
+            self.emit.printout(self.emit.emitRETURN(self.visit(ast.expr, o)[1],o['frame']))
+        self.emit.printout(self.emit.emitRETURN(VoidType(),o['frame']))    
         return o
 
     def visitId(self, ast, o):
@@ -450,33 +476,36 @@ class CodeGenerator(BaseVisitor,Utils):
         
 
 
-    def visitArrayCell(self, ast: ArrayCell, o: dict) -> tuple[str, Type]:
+    def visitArrayCell(self, ast, o) :
+        #   arr:Expr
+        #   idx:List[Expr]
+
         newO = o.copy()
-        newO['isLeft'] = False ## kiểm tra xem đang bên nào
-        code, typ = self.visit(ast.arr, o) 
+        newO['isLeft'] = False
+        codeGen, arrType = self.visit(ast.arr, newO) 
+
+        
 
         for idx, item in enumerate(ast.idx):
-            codeGen += self.visit(item,o)[0]
+            codeGen += self.visit(item, newO)[0]
             if idx != len(ast.idx) - 1:
                 codeGen += self.emit.emitALOAD(arrType, o['frame'])
 
-        # retType = None
-        # ## trả về một kiểu nào đó không phải array
-        # if len(arrType.dimens) == len(ast.idx):
-        #     retType = ## TODO
-        #     if not o.get('isLeft'):
-        #         codeGen += ## TODO
-        #     else:
-        #         self.arrayCell = ## TODO
-        # ## trả về một array
-        # else:
-        #     retType = ## TODO
-        #     if not o.get('isLeft'):
-        #         codeGen += ## TODO
-        #     else:
-        #         self.arrayCell = ## TODO
+        retType = None
+        if len(arrType.dimens) == len(ast.idx):
+            retType = arrType.eleType
+            if not o.get('isLeft'):
+                codeGen += self.emit.emitALOAD(arrType.eleType, o['frame']) 
+            else:
+                self.arrayCell =  ast 
+        else:
+            retType = ArrayType(arrType.dimens[1:: ], arrType.eleType)
+            if not o.get('isLeft'):
+                codeGen += self.emit.emitALOAD(retType, o['frame']) 
+            else:
+                self.arrayCell = ast
 
-        return code,typ
+        return codeGen, retType
 
     def visitFieldAccess(self, ast, o):
         # receiver:Expr
@@ -513,7 +542,7 @@ class CodeGenerator(BaseVisitor,Utils):
         if op in ['==', '!=', '<', '>', '>=', '<='] and type(typeLeft) in [FloatType, IntType]:
             return codeLeft + codeRight +  self.emit.emitREOP(op,typeLeft, frame),BoolType()
         if op in ['||']:
-            return codeLeft + codeRight +   self.emit.emitOROP(op,typeLeft, frame),BoolType()
+            return codeLeft + codeRight +   self.emit.emitOROP(frame),BoolType()
         if op in ['&&']:
             return codeLeft + codeRight + self.emit.emitANDOP(frame), BoolType() 
 
@@ -540,6 +569,7 @@ class CodeGenerator(BaseVisitor,Utils):
             # args:List[Expr] # [] if there is no arg 
 
         sym = next(filter(lambda x: x.name == ast.funName, self.fun_list),None)
+        env = o.copy()
         if o.get('stmt'):
             o["stmt"] = False
             output = "".join([str(self.visit(x,o)[0]) for x in ast.args])
@@ -550,7 +580,6 @@ class CodeGenerator(BaseVisitor,Utils):
         output = "".join([str(self.visit(x, o)[0]) for x in ast.args])
         output += self.emit.emitINVOKESTATIC(f"{sym.value.value}/{ast.funName}",sym.mtype, o['frame'])
 
-        # Vì funcall ở chỗ này là 1 biểu thức nên mình cần trả về giá trị kèm theo kiểu trả về luôn.
         return output, sym.mtype.rettype
 
     def visitMethCall(self, ast, o):
@@ -567,42 +596,48 @@ class CodeGenerator(BaseVisitor,Utils):
         return self.emit.emitPUSHFCONST(str(ast.value),o['frame']),FloatType()
 
     def visitStringLiteral(self, ast, o):
-        return self.emit.emitPUSHCONST(str(ast.value),StringType(),o['frame']),StringType()
+        return self.emit.emitPUSHCONST(ast.value,StringType(),o['frame']),StringType()
 
     def visitBooleanLiteral(self, ast, o):
-        return self.emit.emitPUSHICONST(int(ast.value), o['frame']), BoolType()
+        return self.emit.emitPUSHICONST(str(ast.value), o['frame']), BoolType()
     
     def visitArrayLiteral(self, ast, o):
         # dimens:List[Expr]
         # eleType: Type
         # value: NestedList
-        def nested2recursive(dat: Union[Literal, list['NestedList']], o: dict) -> tuple[str, Type]:
+        def getdimensions(dat):
+            if not isinstance(dat[0], list):
+                return [IntLiteral(len(dat))]
+
+            return [IntLiteral(len(dat))] + getdimensions(dat[0])
+        def nested2recursive(dat, o) :
             if not isinstance(dat,list): 
-                return ## TODO
+                return self.visit(dat, o)
             
             frame = o['frame']
-            codeGen = self.emit.emitPUSHICONST(len(ast.dimens), o['frame'] )
-            # trường hợp mảng một chiều   
+             
+            
             if not isinstance(dat[0],list):
-                codeGen += self.emit.emitNEWARRAY(ast.eleType,o['frame'])
+                codeGen = self.emit.emitPUSHCONST(len(dat), IntType(), frame)
                 _ , type_element_array = self.visit(dat[0], o)
+                codeGen += self.emit.emitNEWARRAY(type_element_array,o['frame'])
                 
                 for idx, item in enumerate(dat):
                     codeGen += self.emit.emitDUP(o['frame'])
                     codeGen += self.emit.emitPUSHICONST(idx,o['frame'])
                     codeGen += self.visit(item, o)[0] 
                     codeGen += self.emit.emitASTORE(type_element_array, o['frame'])
-                return codeGen, ArrayType(ast.dimens,ast.eleType)
+                return codeGen, ArrayType([IntLiteral(len(dat))],ast.eleType)
             
-            # trường hợp mảng 2 chiều 
-            codeGen += self.emit.emitANEWARRAY(ast.eleType,o['frame'])
+            codeGen = self.emit.emitPUSHCONST(len(dat), IntType(), frame)
             _, type_element_array = nested2recursive(dat[0], o)
+            codeGen += self.emit.emitANEWARRAY(type_element_array,o['frame'])
             for idx, item in enumerate(dat):
                 codeGen += self.emit.emitDUP(o['frame'])
                 codeGen += self.emit.emitPUSHICONST(idx,o['frame'])
-                codeGen += nested2recursive(item, o)
+                codeGen += nested2recursive(item, o)[0]
                 codeGen += self.emit.emitASTORE(type_element_array, o['frame'])
-            return  codeGen, ArrayType(ast.dimens,ast.eleType)
+            return  codeGen, ArrayType(getdimensions(dat),ast.eleType)
         
         return nested2recursive(ast.value, o) 
 
@@ -616,5 +651,44 @@ class CodeGenerator(BaseVisitor,Utils):
     def visitNilLiteral(self, ast, o):
         pass
 
+    def calculateIntLiteral(self, ast, o):
 
-    
+        def visitBinaryOp(self,ast,o): 
+        # op:str
+        # left:Expr
+        # right:Expr
+            leftType = self.calculateIntLiteral(ast.left,o)
+            rightType = self.calculateIntLiteral(ast.right,o)
+            op = ast.op
+            if op == "+":
+                    return IntLiteral(leftType.value + rightType.value)
+            elif op in ["-","*","/"]:
+                if (isinstance(leftType,IntLiteral) and isinstance(rightType,IntLiteral)):
+                    if op == "-":
+                        return IntLiteral(leftType.value - rightType.value)
+                    if op =="*":
+                        return IntLiteral(int(leftType.value * rightType.value))
+                    if op == "/":
+                        return IntLiteral(int(leftType.value / rightType.value))
+            elif op =="%":
+                return IntLiteral(int(leftType.value % rightType.value))           
+        def visitUnaryOp(self,ast,o): 
+            op = ast.op
+            bodyType = self.calculateIntLiteral(ast.body,c)
+            return IntLiteral(- bodyType.value)
+        def visitId(self,ast,o):
+            #name : str
+            sym = next(filter(lambda x: x.name == ast.name, [j for i in o['env'] for j in i]),None)      
+            return IntLiteral(sym.initValue.value)
+
+
+        if type(ast) is IntLiteral:
+            return ast
+        elif type(ast) is BinaryOp:
+            return visitBinaryOp(self,ast,o)
+        elif type(ast) is UnaryOp:
+            return visitUnaryOp(self,ast,o)
+        elif type(ast) is Id:
+            return visitId(self,ast,o)
+        else :
+            return IntLiteral(0)

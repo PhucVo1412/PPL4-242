@@ -6,13 +6,21 @@
 Label0:
 .var 0 is args [Ljava/lang/String; from Label0 to Label1
 Label2:
-	ldc 1.0
-	invokestatic io/putFloat(F)V
+.var 1 is a I from Label2 to Label3
+	iconst_3
+	istore_1
+.var 2 is b I from Label2 to Label3
+	iconst_4
+	istore_2
+	iload_1
+	iload_2
+	isub
+	invokestatic io/putInt(I)V
 Label3:
 Label1:
 	return
-.limit stack 1
-.limit locals 1
+.limit stack 2
+.limit locals 3
 .end method
 
 .method public <init>()V

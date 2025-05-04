@@ -1,5 +1,7 @@
 
         func main() {
-            putFloat(1.0)
+            var a int = 3;
+            var b int = 4;
+            putInt(a - b)
         }
-        
+         

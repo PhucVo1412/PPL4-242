@@ -8,7 +8,7 @@
             putInt(fooInt(2));
             putFloat(fooFloat(1.5));
             putString(fooString("S"));
-            putBool(fooBool(true));
+            putBool(fooBool(true)); 
         }
                 
-                
+        

@@ -6,32 +6,31 @@
 Label0:
 .var 0 is args [Ljava/lang/String; from Label0 to Label1
 Label2:
+	iconst_0
 	iconst_1
-	ifgt Label4
-	iconst_1
+	iand
+	ifle Label4
+Label6:
+	ldc "Hello"
+	invokestatic io/putString(Ljava/lang/String;)V
+Label7:
 	goto Label5
 Label4:
+	iconst_1
 	iconst_0
+	ior
+	ifle Label8
+Label9:
+	ldc "World"
+	invokestatic io/putString(Ljava/lang/String;)V
+Label10:
+Label8:
+LabelNone:
 Label5:
-	invokestatic io/putBoolLn(Z)V
-	iconst_0
-	ifgt Label6
-	iconst_1
-	goto Label7
-Label6:
-	iconst_0
-Label7:
-	invokestatic io/putBoolLn(Z)V
-	iconst_1
-	ineg
-	invokestatic io/putIntLn(I)V
-	ldc 1.0
-	fneg
-	invokestatic io/putFloatLn(F)V
 Label3:
 Label1:
 	return
-.limit stack 3
+.limit stack 6
 .limit locals 1
 .end method
 

@@ -6,19 +6,21 @@
 Label0:
 .var 0 is args [Ljava/lang/String; from Label0 to Label1
 Label2:
+.var 1 is a1 I from Label2 to Label3
 	iconst_5
-	iconst_2
-	irem
-	invokestatic io/putIntLn(I)V
-	iconst_2
-	iconst_5
-	irem
-	invokestatic io/putIntLn(I)V
+	istore_1
+.var 2 is a2 I from Label2 to Label3
+	bipush 7
+	istore_2
+	iload_1
+	iload_2
+	imul
+	invokestatic io/putInt(I)V
 Label3:
 Label1:
 	return
 .limit stack 2
-.limit locals 1
+.limit locals 3
 .end method
 
 .method public <init>()V

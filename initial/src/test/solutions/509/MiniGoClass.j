@@ -35,17 +35,6 @@ Label1:
 .limit locals 1
 .end method
 
-.method public static foo1()I
-Label0:
-Label2:
-	iconst_1
-	ireturn
-Label3:
-Label1:
-.limit stack 2
-.limit locals 0
-.end method
-
 .method public <init>()V
 .var 0 is this LMiniGoClass; from Label0 to Label1
 Label0:

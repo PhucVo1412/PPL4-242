@@ -1,8 +1,9 @@
 
         func main() {
-            putBoolLn(! true)
-            putBoolLn(! false)
-            putIntLn(-1)
-            putFloatLn(-1.0)
+        if (false && true) {
+            putString("Hello")
+        } else if (true || false){
+            putString("World")
         }
-     
+        }
+    
