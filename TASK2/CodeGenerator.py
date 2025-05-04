@@ -46,7 +46,7 @@ class CodeGenerator(BaseVisitor,Utils):
         self.list_function = []
         self.arrayCell = None
         self.arrayCellType = None
-        self.list_type = {}
+        self.list_type = []
         self.struct = None
 
     def init(self):
@@ -106,8 +106,17 @@ class CodeGenerator(BaseVisitor,Utils):
         frame.exitScope()
 
     def visitProgram(self, ast, c):
+        #decl : List[Decl]
         self.fun_list = c + [Symbol(item.name, MType(list(map(lambda x: x.parType, item.params)), item.retType), CName(self.className)) for item in ast.decl if isinstance(item, FuncDecl)]
-        
+        self.list_type += list([x for x in ast.decl if type(ast.decl) is StructType])
+        for item in ast.decl:
+            if type(item) is MethodDecl:
+                structName = item.recType.name
+                structFound = self.lookup(structName,self.list_type,lambda x: x)
+                structFound.methods += [item]
+            
+                
+
         env = {}
         env['env'] = [c]
 
@@ -121,7 +130,7 @@ class CodeGenerator(BaseVisitor,Utils):
 
         self.emit.printout(self.emit.emitEPILOG())
 
-        for item in self.list_type.values():
+        for item in self.list_type:
             self.struct = item
             self.emit = Emitter(self.path + "/" + item.name + ".j")
             self.visit(item, {
@@ -152,6 +161,8 @@ class CodeGenerator(BaseVisitor,Utils):
                 return StringLiteral("\"\"")
             elif type(varType) is BoolType:
                 return BooleanLiteral(False)
+            elif type(varType) is StructType:
+                return StructLiteral(varType.name,[])
             elif type(varType) is ArrayType:
                 dimensions = varType.dimens
                 
@@ -390,6 +401,11 @@ class CodeGenerator(BaseVisitor,Utils):
         if type(ast.lhs) is Id and not next(filter(lambda x: x.name == ast.lhs.name, [sym for env in o['env'] for sym in env]), None) :
             return self.visit(VarDecl(ast.lhs.name,None,ast.rhs),o)
 
+        if type(ast.lhs) is FieldAccess:
+            pass
+        elif type(ast.lhs) is ArrayCell:
+            pass
+
         rhsCode, rhsType = self.visit(ast.rhs, o)
         o['isLeft'] = True
         lhsCode, lhsType = self.visit(ast.lhs, o) 
@@ -511,6 +527,13 @@ class CodeGenerator(BaseVisitor,Utils):
     def visitId(self, ast, o):
         #name : str
         sym = next(filter(lambda x: x.name == ast.name, [j for i in o['env'] for j in i]),None)
+
+        if sym is None:
+            structFound = self.lookup(sym.name,self.list_type, lambda x:x.name)
+            if o.get('isLeft'):
+                return self.emit.emitWRITEVAR("this")
+            return self.emit.emitREADVAR("this")
+
         if o.get('isLeft'):
             if type(sym.value) is Index: 
                 return self.emit.emitWRITEVAR(ast.name, sym.mtype, sym.value.value, o['frame']), sym.mtype
