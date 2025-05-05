@@ -544,16 +544,30 @@ class CodeGenSuite(unittest.TestCase):
     def test_544(self):
         input = """
         
+        type Course interface {study();}
+        type PPL3 struct {number int;}
+        func (p PPL3) study() {putInt(p.number);}
+
+        func main(){
+            var a PPL3 = PPL3 {number: 10}
+            putIntLn(a.number)
+            a.study()
+        }
+        
+        """
+        self.assertTrue(TestCodeGen.test(input,"10\n10",inspect.stack()[0].function))
+    
+
+    def test_545(self):
+        input = """
 type Course interface {study();}
 type PPL3 struct {number int;}
 func (p PPL3) study() {putInt(p.number);}
 
 func main(){
-    var a PPL3 = PPL3 {number: 10}
-    putIntLn(a.number)
+    var a Course = nil
+    a := PPL3 {number: 10}
     a.study()
 }
-        
         """
-        self.assertTrue(TestCodeGen.test(input,"10\n10",inspect.stack()[0].function))
-    
+        self.assertTrue(TestCodeGen.test(input, "10", inspect.stack()[0].function))

@@ -240,7 +240,7 @@ class Emitter():
             return self.jvm.emitISTORE(index)
         elif type(inType) is FloatType:
             return self.jvm.emitFSTORE(index)
-        elif type(inType) in [cgen.ArrayType, cgen.ClassType, StringType]:
+        elif type(inType) in [cgen.ArrayType, cgen.ClassType, StringType, Id]:
             return self.jvm.emitASTORE(index)
         else:
             raise IllegalOperandException(f"Illegal type '{type(inType).__name__}' for variable '{name}' in emitWRITEVAR.")
@@ -573,9 +573,11 @@ class Emitter():
 
     '''   generate the end directive for a function.
     '''
-    def emitENDMETHOD(self, frame):
+    def emitENDMETHOD(self, frame = None):
         #frame: Frame
-
+        if frame is None:
+            return self.jvm.emitENDMETHOD()
+        
         buffer = list()
         buffer.append(self.jvm.emitLIMITSTACK(frame.getMaxOpStackSize()))
         buffer.append(self.jvm.emitLIMITLOCAL(frame.getMaxIndex()))
@@ -765,10 +767,10 @@ class Emitter():
         return  self.INDENT + "implements " + lexeme + self.END
 
 
-    def emitABSTRACTMETHOD(self, lexeme, in_,retType, frame):
+    def emitABSTRACTMETHOD(self, lexeme, in_,retType):
         #lexeme:str
         #in_: list(Type)
-        return self.INDENT + "method public abstract " + lexeme + "".join([self.getJVMType(i) for i in in_]) + self.getJVMType(retType) +  self.END
+        return "method public abstract " + lexeme + "(" +"".join([self.getJVMType(i) for i in in_]) + ")" + self.getJVMType(retType) +  self.END
 
     ''' print out the code to screen
     *   @param in the code to be printed out

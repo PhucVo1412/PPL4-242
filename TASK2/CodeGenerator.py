@@ -108,7 +108,9 @@ class CodeGenerator(BaseVisitor,Utils):
     def visitProgram(self, ast, c):
         #decl : List[Decl]
         self.fun_list = c + [Symbol(item.name, MType(list(map(lambda x: x.parType, item.params)), item.retType), CName(self.className)) for item in ast.decl if isinstance(item, FuncDecl)]
-        self.list_type += list([x for x in ast.decl if type(x) is StructType])
+      
+        self.list_type += list([x for x in ast.decl if isinstance(x, StructType) or isinstance(x, InterfaceType)])
+
         for item in ast.decl:
             if type(item) is MethodDecl:
                 structName = item.recType.name
@@ -226,9 +228,6 @@ class CodeGenerator(BaseVisitor,Utils):
 
             index = frame.getNewIndex()
             o['env'][0].append(Symbol(ast.varName, varType,Index(index), self.calculateIntLiteral(ast.varInit,o) if type(varType) is IntType else ast.varInit )) 
-
-
-
             self.emit.printout(self.emit.emitVAR(index, ast.varName, varType, frame.getStartLabel(), frame.getEndLabel(), frame))  
             rhsCode, rhsType = self.visit(varInit, o)
             if type(varType) is FloatType and type(rhsType) is IntType:
@@ -237,6 +236,7 @@ class CodeGenerator(BaseVisitor,Utils):
             if type(varType) is Id:
                 self.emit.printout(self.emit.emitNEW(varType.name,o['frame']))
                 self.emit.printout(rhsCode)
+                self.emit.printout(self.emit.emitWRITEVAR(ast.varName, varType, index, frame)) 
                 return o
             self.emit.printout(rhsCode)
             self.emit.printout(self.emit.emitWRITEVAR(ast.varName, varType, index, frame))                   
@@ -326,7 +326,7 @@ class CodeGenerator(BaseVisitor,Utils):
         list_type = [param for param in ast.params if type(param)]
         retType = ast.retType if ast.retType else VoidType()
 
-        return self.emit.emitABSTRACTMETHOD(ast.name, list_type, retType, o['frame'])
+        return self.emit.emitABSTRACTMETHOD(ast.name, list_type, retType)
          
 
     def visitIntType(self, ast, o):
@@ -358,31 +358,34 @@ class CodeGenerator(BaseVisitor,Utils):
         # name: str
         # elements:List[Tuple[str,Type]]
         # methods:List[MethodDecl]
-        self.emit.printout(self.emit.emitPROLOG(f"{ast.name}", "java.lang.Object"))
+        self.emit.printout(self.emit.emitPROLOG(ast.name, "java.lang.Object"))
+
         for item in self.list_type: 
-            if item.name == ast.name and self.checkType(item, ast, [(InterfaceType, StructType)]): 
+            if type(item) is InterfaceType and self.checkType(item, ast, [(InterfaceType, StructType)]): 
                 self.emit.printout(self.emit.emitIMPLEMENT(item.name)) 
 
         for item in ast.elements:
             self.emit.printout(self.emit.emitATTRIBUTE(item[0],item[1], False, False, None))
 
-        self.visit(MethodDecl("this", Id(ast.name), FuncDecl("<init>", [ParamDecl(item[0],item[1]) for item in ast.elements], VoidType(),                                             
-                            Block([VarDecl(item[0],item[1],None) for item in ast.elements]))), o)   
+        self.visit(MethodDecl(None, None, FuncDecl("<init>", [ParamDecl(item[0],item[1]) for item in ast.elements], VoidType(),                                             
+                            Block([Assign(FieldAccess(Id("this"),item[0]),item[0]) for item in ast.elements]))), o)   
            
-        self.visit(MethodDecl("this", Id(ast.name), FuncDecl("<init>",[],VoidType(),Block([]))), o)
+        self.visit(MethodDecl(None, None, FuncDecl("<init>",[],VoidType(),Block([]))), o)
+
         for item in ast.methods: 
             self.visit(item, o)
 
-        self.emit.printout(self.emit.emit) # kết thúc khai báo của struct
+        self.emit.printout(self.emit.emitEPILOG())
+
 
     def visitInterfaceType(self, ast, o):
         # name: str
         # methods:List[Prototype]
 
-        self.emit.printout(self.emit.emitPROLOG(ast.name, "java.lang.Object", True))
+        self.emit.printout(self.emit.emitPROLOG(ast.name, "java.lang.Object"))
         for item in ast.methods:
-            self.emit.emitprintout(self.visit(item,o)[0])
-            self.emit.emitprintout(self.emit.emitENDMETHOD(o['frame']))
+            self.emit.printout(self.visit(item,o))
+            self.emit.printout(self.emit.emitENDMETHOD())
         self.emit.printout(self.emit.emitEPILOG())
 
     def visitBlock(self, ast, o):
@@ -536,13 +539,15 @@ class CodeGenerator(BaseVisitor,Utils):
 
     def visitId(self, ast, o):
         #name : str
-        sym = next(filter(lambda x: x.name == ast.name, [j for i in o['env'] for j in i]),None)
+
+        # raise TypeError(o['env'][0][0])
+        environment = [j for i in o['env'] for j in i]
+        sym = self.lookup(ast.name, environment, lambda x: x.name)
 
         if sym is None:
-            structFound = self.lookup(ast.name,self.list_type, lambda x:x.name)
             if o.get('isLeft'):
-                return self.emit.emitWRITEVAR("this")
-            return self.emit.emitREADVAR("this")
+                return self.emit.emitWRITEVAR("this",Id(ast.name), 0, o['frame']),Id("this")
+            return self.emit.emitREADVAR("this",Id(ast.name), 0, o['frame']),Id("this")
 
         if o.get('isLeft'):
             if type(sym.value) is Index: 
@@ -592,12 +597,23 @@ class CodeGenerator(BaseVisitor,Utils):
     def visitFieldAccess(self, ast, o):
         # receiver:Expr
         # field:str
-
+    
         code, typ = self.visit(ast.receiver, o)
-
-        found = next(filter(lambda x: x.name == typ.name, self.list_type),None)
-        found1 = next(filter(lambda x: x[0] == ast.field, found.elements),None)
-        return code + self.emit.emitGETFIELD(f"java.lang.Object.{found.name}{found1[0]}", found1[1],o['frame']), found1[1] 
+    
+        if typ.name != "this":
+            found1 = next(filter(lambda x: x.name == typ.name, self.list_type),None)
+            found2 = next(filter(lambda x: x[0] == ast.field, found1.elements),None)
+            if o.get('isLeft'):
+                return code + self.emit.emitPUTFIELD(f"{found1.name}/{ast.field}", found2[1],o['frame']), found2[1]
+            else:
+                return code + self.emit.emitGETFIELD(f"{found1.name}/{found2[0]}", found2[1],o['frame']), found2[1] 
+        
+        found1 = next(filter(lambda x: x.name == self.struct.name, self.list_type),None)
+        found2 = next(filter(lambda x: x[0] == ast.field, found1.elements),None)
+        if o.get('isLeft'):
+            return code + self.emit.emitPUTFIELD(f"{found1.name}/{ast.field}", found2[1],o['frame']), found2[1]
+        else:
+            return code + self.emit.emitGETFIELD(f"{found1.name}/{found2[0]}", found2[1],o['frame']), found2[1] 
 
 
     def visitBinaryOp(self, ast, o):
@@ -822,18 +838,18 @@ class CodeGenerator(BaseVisitor,Utils):
             return IntLiteral(0)
 
     def checkType(self, LSH_type, RHS_type, list_type_permission) :
-        if type(RHS_type) == StructType and RHS_type.name == "":
+        if type(RHS_type) is StructType and RHS_type.name == "":
             return True
 
-        LSH_type = self.lookup(LSH_type.name, self.list_type.values(), lambda x: x.name  ) if isinstance(LSH_type, Id) else LSH_type
-        RHS_type = self.lookup(RHS_type.name, self.list_type.values(), lambda x: x.name  ) if isinstance(RHS_type, Id) else RHS_type
+        LSH_type = self.lookup(LSH_type.name, self.list_type, lambda x: x.name  ) if isinstance(LSH_type, Id) else LSH_type
+        RHS_type = self.lookup(RHS_type.name, self.list_type, lambda x: x.name  ) if isinstance(RHS_type, Id) else RHS_type
 
         if (type(LSH_type), type(RHS_type)) in list_type_permission:
             if isinstance(LSH_type, InterfaceType) and isinstance(RHS_type, StructType):
                 return all(
                     any(
                         struct_methods.fun.name == inteface_method.name and
-                        self.checkType(struct_methods.fun.retType, inteface_method.retType) and
+                        self.checkType(struct_methods.fun.retType, inteface_method.retType,list_type_permission) and
                         len(struct_methods.fun.params) == len(inteface_method.params) and
                         reduce(
                             lambda x, i: x and self.checkType(struct_methods.fun.params[i].parType, inteface_method.params[i]),

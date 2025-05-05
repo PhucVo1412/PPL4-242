@@ -6,17 +6,16 @@
 Label0:
 .var 0 is args [Ljava/lang/String; from Label0 to Label1
 Label2:
-.var 1 is a PPL3 from Label2 to Label3
-	new PPL3
+.var 1 is a LCourse; from Label2 to Label3
+	aconst_null
+	astore_1
 	new PPL3
 	dup
 	bipush 10
 	invokespecial PPL3/<init>(I)V
 	astore_1
 	aload_1
-	getfield PPL3/number I
-	invokestatic io/putIntLn(I)V
-	invokevirtual PPL3/study()V
+	invokeinterface Course/study()V
 Label3:
 Label1:
 	return
