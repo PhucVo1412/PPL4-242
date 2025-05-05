@@ -299,7 +299,7 @@ class CodeGenerator(BaseVisitor,Utils):
         self.emit.printout(self.emit.emitMETHOD(ast.fun.name, mtype,False, frame))
         frame.enterScope(True) 
 
-        self.emit.printout(self.emit.emitVAR("this",Id(ast.recType.name),env['frame'].getStartLabel(),env['frame'].getEndLabel(),env['frame'])) 
+        self.emit.printout(self.emit.emitVAR(0,"this",Id(ast.recType.name),env['frame'].getStartLabel(),env['frame'].getEndLabel(),env['frame'])) 
 
         self.emit.printout(self.emit.emitLABEL(frame.getStartLabel(), frame))
         if ast.receiver is None:
@@ -369,7 +369,7 @@ class CodeGenerator(BaseVisitor,Utils):
         self.visit(MethodDecl("this", Id(ast.name), FuncDecl("<init>", [ParamDecl(item[0],item[1]) for item in ast.elements], VoidType(),                                             
                             Block([VarDecl(item[0],item[1],None) for item in ast.elements]))), o)   
            
-        self.visit(MethodDecl("this", Id(ast.name), FuncDecl("<init>",[],VoidType()), o))
+        self.visit(MethodDecl("this", Id(ast.name), FuncDecl("<init>",[],VoidType(),Block([]))), o)
         for item in ast.methods: 
             self.visit(item, o)
 
@@ -539,7 +539,7 @@ class CodeGenerator(BaseVisitor,Utils):
         sym = next(filter(lambda x: x.name == ast.name, [j for i in o['env'] for j in i]),None)
 
         if sym is None:
-            structFound = self.lookup(sym.name,self.list_type, lambda x:x.name)
+            structFound = self.lookup(ast.name,self.list_type, lambda x:x.name)
             if o.get('isLeft'):
                 return self.emit.emitWRITEVAR("this")
             return self.emit.emitREADVAR("this")
