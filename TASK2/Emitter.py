@@ -206,7 +206,7 @@ class Emitter():
             return self.jvm.emitILOAD(index)
         elif type(inType) is FloatType:
             return self.jvm.emitFLOAD(index)
-        elif type(inType) is cgen.ArrayType or type(inType) is cgen.ClassType or type(inType) is StringType:
+        elif type(inType) is cgen.ArrayType or type(inType) is cgen.ClassType or type(inType) is StringType or type(inType) is Id:
             return self.jvm.emitALOAD(index)
         else:
             raise IllegalOperandException(name)
@@ -761,7 +761,7 @@ class Emitter():
         frame.push()
         return self.jvm.emitPUSHNULL()
 
-    def emitIMPLEMENT(self,lexeme, frame):
+    def emitIMPLEMENT(self,lexeme):
         return  self.INDENT + "implements " + lexeme + self.END
 
 

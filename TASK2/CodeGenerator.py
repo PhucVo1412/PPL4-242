@@ -217,6 +217,7 @@ class CodeGenerator(BaseVisitor,Utils):
         if not varType:
             varType = rhsType
 
+
         if 'frame' not in o: # TH global var 
             o['env'][0].append(Symbol(ast.varName, varType,CName(self.className), self.calculateIntLiteral(ast.varInit,o) if type(varType) is IntType else ast.varInit))
             self.emit.printout(self.emit.emitATTRIBUTE(ast.varName, varType, True, False, None))
@@ -233,6 +234,10 @@ class CodeGenerator(BaseVisitor,Utils):
             if type(varType) is FloatType and type(rhsType) is IntType:
                 rhsCode += self.emit.emitI2F(frame) 
                   
+            if type(varType) is Id:
+                self.emit.printout(self.emit.emitNEW(varType.name,o['frame']))
+                self.emit.printout(rhsCode)
+                return o
             self.emit.printout(rhsCode)
             self.emit.printout(self.emit.emitWRITEVAR(ast.varName, varType, index, frame))                   
         return o
@@ -294,7 +299,7 @@ class CodeGenerator(BaseVisitor,Utils):
         self.emit.printout(self.emit.emitMETHOD(ast.fun.name, mtype,False, frame))
         frame.enterScope(True) 
 
-        self.emit.printout(self.emit.emitVAR("this",Id(recType.name),env['frame'].getStartLabel(),env['frame'].getEndLable(),env['frame'])) 
+        self.emit.printout(self.emit.emitVAR("this",Id(ast.recType.name),env['frame'].getStartLabel(),env['frame'].getEndLabel(),env['frame'])) 
 
         self.emit.printout(self.emit.emitLABEL(frame.getStartLabel(), frame))
         if ast.receiver is None:
@@ -349,22 +354,22 @@ class CodeGenerator(BaseVisitor,Utils):
         return codeGen, ast
 
     
-    def visitStructType(self, ast: StructType, o):
+    def visitStructType(self, ast, o):
         # name: str
         # elements:List[Tuple[str,Type]]
         # methods:List[MethodDecl]
         self.emit.printout(self.emit.emitPROLOG(f"{ast.name}", "java.lang.Object"))
-        for item in self.list_type.values(): 
+        for item in self.list_type: 
             if item.name == ast.name and self.checkType(item, ast, [(InterfaceType, StructType)]): 
-                self.emit.printout(self.emit.emitIMPLEMENT(item.name, o['frame'])) 
+                self.emit.printout(self.emit.emitIMPLEMENT(item.name)) 
 
         for item in ast.elements:
             self.emit.printout(self.emit.emitATTRIBUTE(item[0],item[1], False, False, None))
 
-        self.visit(MethodDecl(None, None, FuncDecl("<init>", [ParamDecl(item[0],item[1]) for item in ast.elements], VoidType(),                                             
+        self.visit(MethodDecl("this", Id(ast.name), FuncDecl("<init>", [ParamDecl(item[0],item[1]) for item in ast.elements], VoidType(),                                             
                             Block([VarDecl(item[0],item[1],None) for item in ast.elements]))), o)   
            
-        self.visit(MethodDecl(None, None, FuncDecl("<init>",[],VoidType()), o))
+        self.visit(MethodDecl("this", Id(ast.name), FuncDecl("<init>",[],VoidType()), o))
         for item in ast.methods: 
             self.visit(item, o)
 
@@ -394,8 +399,7 @@ class CodeGenerator(BaseVisitor,Utils):
         for stmt in ast.member:
             if type(stmt) is FuncCall:
                 env['stmt'] = True
-            env = self.visit(stmt,env)
-
+            self.visit(stmt,env)
 
         self.emit.printout(self.emit.emitLABEL(env['frame'].getEndLabel(), env['frame']))
         env['frame'].exitScope()
@@ -673,7 +677,7 @@ class CodeGenerator(BaseVisitor,Utils):
 
         code, typ = self.visit(ast.receiver, o)
         if isinstance(typ, Id):
-            typ = self.list_type.get(typ.name)
+            typ = self.lookup(typ.name,self.list_type,lambda x:x.name)
 
         is_stmt = o.pop("stmt", False)
 
@@ -682,7 +686,7 @@ class CodeGenerator(BaseVisitor,Utils):
 
         returnType = None
         if isinstance(typ, StructType):
-            method = next(filter(lambda x: x.name == ast.metName, typ.methods), None)
+            method = next(filter(lambda x: x.fun.name == ast.metName, typ.methods), None)
             mtype = MType(list([item.parType for item in method.fun.params]), method.fun.retType)
             returnType = method.fun.retType
             self.emit.printout(self.emit.emitINVOKEVIRTUAL(f"{typ.name}/{ast.metName}", mtype, o['frame']))
@@ -842,7 +846,7 @@ class CodeGenerator(BaseVisitor,Utils):
                 )
             # Kiểm tra tương thích giữa hai InterfaceType hoặc hai StructType.
             if isinstance(LSH_type, (StructType,InterfaceType)) and isinstance(RHS_type, (StructType,InterfaceType)):
-                return LHS_type.name == RHS_type.name 
+                return LSH_type.name == RHS_type.name 
 
         if isinstance(LSH_type, ArrayType) and isinstance(RHS_type, ArrayType):
             return (len(LHS.dimens) == len(RHS.dimens)
