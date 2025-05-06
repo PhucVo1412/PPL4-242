@@ -109,7 +109,7 @@ class CodeGenerator(BaseVisitor,Utils):
         #decl : List[Decl]
         self.fun_list = c + [Symbol(item.name, MType(list(map(lambda x: x.parType, item.params)), item.retType), CName(self.className)) for item in ast.decl if isinstance(item, FuncDecl)]
       
-        self.list_type += list([x for x in ast.decl if isinstance(x, StructType) or isinstance(x, InterfaceType)])
+        self.list_type += list([x for x in ast.decl if isinstance(x, (StructType,InterfaceType)) ])
 
         for item in ast.decl:
             if type(item) is MethodDecl:
@@ -163,8 +163,9 @@ class CodeGenerator(BaseVisitor,Utils):
                 return StringLiteral("\"\"")
             elif type(varType) is BoolType:
                 return BooleanLiteral(False)
-            elif type(varType) is StructType:
-                return StructLiteral(varType.name,[])
+            elif type(varType) is Id:
+                structFound = self.lookup(varType.name,self.list_type,lambda x:x.name)
+                return StructLiteral(structFound.name,[])
             elif type(varType) is ArrayType:
                 dimensions = varType.dimens
                 
@@ -212,11 +213,12 @@ class CodeGenerator(BaseVisitor,Utils):
             varInit = create_init(varType, o)
             ast.varInit = varInit
         
+
         env = o.copy()
         env['frame'] = Frame("<Mytemplate>", VoidType()) 
 
         rhsCode, rhsType = self.visit(varInit, env)
-        if not varType:
+        if not varType :
             varType = rhsType
 
 
@@ -234,7 +236,6 @@ class CodeGenerator(BaseVisitor,Utils):
                 rhsCode += self.emit.emitI2F(frame) 
                   
             if type(varType) is Id:
-                self.emit.printout(self.emit.emitNEW(varType.name,o['frame']))
                 self.emit.printout(rhsCode)
                 self.emit.printout(self.emit.emitWRITEVAR(ast.varName, varType, index, frame)) 
                 return o
@@ -299,7 +300,7 @@ class CodeGenerator(BaseVisitor,Utils):
         self.emit.printout(self.emit.emitMETHOD(ast.fun.name, mtype,False, frame))
         frame.enterScope(True) 
 
-        self.emit.printout(self.emit.emitVAR(0,"this",Id(ast.recType.name),env['frame'].getStartLabel(),env['frame'].getEndLabel(),env['frame'])) 
+        self.emit.printout(self.emit.emitVAR(frame.getNewIndex(),"this",Id(self.struct.name),env['frame'].getStartLabel(),env['frame'].getEndLabel(),env['frame'])) 
 
         self.emit.printout(self.emit.emitLABEL(frame.getStartLabel(), frame))
         if ast.receiver is None:
@@ -314,7 +315,7 @@ class CodeGenerator(BaseVisitor,Utils):
 
         self.emit.printout(self.emit.emitLABEL(frame.getEndLabel(), frame))
         if type(ast.fun.retType) is VoidType:
-            self.emit.printout(self.visit(Return(None),env)) 
+            self.emit.printout(self.emit.emitRETURN(VoidType(), frame)) 
         self.emit.printout(self.emit.emitENDMETHOD(frame))
         frame.exitScope()
         return o
@@ -367,10 +368,10 @@ class CodeGenerator(BaseVisitor,Utils):
         for item in ast.elements:
             self.emit.printout(self.emit.emitATTRIBUTE(item[0],item[1], False, False, None))
 
-        self.visit(MethodDecl(None, None, FuncDecl("<init>", [ParamDecl(item[0],item[1]) for item in ast.elements], VoidType(),                                             
-                            Block([Assign(FieldAccess(Id("this"),item[0]),item[0]) for item in ast.elements]))), o)   
+        self.visit(MethodDecl(None, Id(ast.name), FuncDecl("<init>", [ParamDecl(item[0],item[1]) for item in ast.elements], VoidType(),                                             
+                            Block([Assign(FieldAccess(Id("this"),item[0]),Id(item[0])) for item in ast.elements]))), o)   
            
-        self.visit(MethodDecl(None, None, FuncDecl("<init>",[],VoidType(),Block([]))), o)
+        self.visit(MethodDecl(None, Id(ast.name), FuncDecl("<init>",[],VoidType(),Block([]))), o)
 
         for item in ast.methods: 
             self.visit(item, o)
@@ -382,7 +383,7 @@ class CodeGenerator(BaseVisitor,Utils):
         # name: str
         # methods:List[Prototype]
 
-        self.emit.printout(self.emit.emitPROLOG(ast.name, "java.lang.Object"))
+        self.emit.printout(self.emit.emitPROLOGINTERFACE(ast.name, "java.lang.Object"))
         for item in ast.methods:
             self.emit.printout(self.visit(item,o))
             self.emit.printout(self.emit.emitENDMETHOD())
@@ -400,7 +401,7 @@ class CodeGenerator(BaseVisitor,Utils):
         self.emit.printout(self.emit.emitLABEL(env['frame'].getStartLabel(), env['frame']))
 
         for stmt in ast.member:
-            if type(stmt) is FuncCall:
+            if type(stmt) is FuncCall or type(stmt) is MethCall:
                 env['stmt'] = True
             self.visit(stmt,env)
 
@@ -415,7 +416,25 @@ class CodeGenerator(BaseVisitor,Utils):
             return self.visit(VarDecl(ast.lhs.name,None,ast.rhs),o)
 
         if type(ast.lhs) is FieldAccess:
-            pass
+            # receiver:Expr
+            # field:str
+            fieldAccess = ast.lhs
+            if type(fieldAccess.receiver) is Id and fieldAccess.receiver.name == "this":
+                self.emit.printout(self.emit.emitREADVAR("this", Id(self.struct.name),0,o['frame']))
+                field = self.lookup(fieldAccess.field,self.struct.elements,lambda x: x[0])
+                rhsCode, rhsType = self.visit(ast.rhs, o) 
+                self.emit.printout(rhsCode)
+                self.emit.printout(self.emit.emitPUTFIELD(f"{self.struct.name}/{field[0]}",field[1],o['frame']))
+                return o
+            elif type(fieldAccess.receiver) is Id:
+                code,typ = self.visit(fieldAccess.receiver,o)
+                structFound = self.lookup(typ.name, self.list_type, lambda x:x.name)
+                field = self.lookup(fieldAccess.field,structFound.elements,lambda x: x[0])
+                rhsCode, rhsType = self.visit(ast.rhs, o)
+                self.emit.printout(code + rhsCode)
+                self.emit.printout(self.emit.emitPUTFIELD(f"{structFound.name}/{field[0]}",field[1],o['frame']))
+                return o
+
         elif type(ast.lhs) is ArrayCell:
             pass
 
@@ -598,23 +617,24 @@ class CodeGenerator(BaseVisitor,Utils):
         # receiver:Expr
         # field:str
     
+
         code, typ = self.visit(ast.receiver, o)
     
+        if typ.name == "this":
+            found1 = next(filter(lambda x: x.name == self.struct.name, self.list_type),None)
+            found2 = next(filter(lambda x: x[0] == ast.field, found1.elements),None)
+            if o.get('isLeft'):
+                return code + self.emit.emitPUTFIELD(f"{found1.name}/{ast.field}", found2[1],o['frame']), found2[1]
+            else:
+                return code + self.emit.emitGETFIELD(f"{found1.name}/{found2[0]}", found2[1],o['frame']), found2[1] 
+
         if typ.name != "this":
             found1 = next(filter(lambda x: x.name == typ.name, self.list_type),None)
             found2 = next(filter(lambda x: x[0] == ast.field, found1.elements),None)
             if o.get('isLeft'):
                 return code + self.emit.emitPUTFIELD(f"{found1.name}/{ast.field}", found2[1],o['frame']), found2[1]
             else:
-                return code + self.emit.emitGETFIELD(f"{found1.name}/{found2[0]}", found2[1],o['frame']), found2[1] 
-        
-        found1 = next(filter(lambda x: x.name == self.struct.name, self.list_type),None)
-        found2 = next(filter(lambda x: x[0] == ast.field, found1.elements),None)
-        if o.get('isLeft'):
-            return code + self.emit.emitPUTFIELD(f"{found1.name}/{ast.field}", found2[1],o['frame']), found2[1]
-        else:
-            return code + self.emit.emitGETFIELD(f"{found1.name}/{found2[0]}", found2[1],o['frame']), found2[1] 
-
+                return code + self.emit.emitGETFIELD(f"{found1.name}/{found2[0]}", found2[1],o['frame']), found2[1]
 
     def visitBinaryOp(self, ast, o):
         # op:str
@@ -695,7 +715,7 @@ class CodeGenerator(BaseVisitor,Utils):
         if isinstance(typ, Id):
             typ = self.lookup(typ.name,self.list_type,lambda x:x.name)
 
-        is_stmt = o.pop("stmt", False)
+        is_stmt = o.get('stmt')
 
         for arg in ast.args:
             code += self.visit(arg, o)[0]
@@ -705,19 +725,19 @@ class CodeGenerator(BaseVisitor,Utils):
             method = next(filter(lambda x: x.fun.name == ast.metName, typ.methods), None)
             mtype = MType(list([item.parType for item in method.fun.params]), method.fun.retType)
             returnType = method.fun.retType
-            self.emit.printout(self.emit.emitINVOKEVIRTUAL(f"{typ.name}/{ast.metName}", mtype, o['frame']))
-            code += self.emit.emitINVOKEVIRTUAL("TODO", mtype, o['frame'])
+            code += self.emit.emitINVOKEVIRTUAL(f"{typ.name}/{ast.metName}", mtype, o['frame'])
             
         elif isinstance(typ, InterfaceType):
             method = next(filter(lambda x: x.name == ast.metName, typ.methods), None)
             
             mtype = MType(list([item for item in method.params]), method.retType)
             returnType = method.retType
-            code += self.emit.emitINVOKEINTERFACE(f"TODO", mtype, o['frame'])
-        
+            code += self.emit.emitINVOKEINTERFACE(f"{typ.name}/{ast.metName}", mtype, o['frame'])
+
         if is_stmt:
             self.emit.printout(code)
             return o
+        
         return code, returnType
 
     def visitIntLiteral(self, ast, o):

@@ -66,7 +66,7 @@ class Emitter():
         elif typeIn is VoidType:
             return "V"
         elif typeIn is Id:
-            return inType.name
+            return "L" + inType.name + ";"
         elif typeIn is ArrayType:
             return "".join(["[" for x in range(len(inType.dimens))]) + self.getJVMType(inType.eleType)
         elif typeIn is MType:
@@ -270,7 +270,7 @@ class Emitter():
         if isStatic:
             return self.jvm.emitSTATICFIELD(lexeme, self.getJVMType(in_), isFinal, value)
         else:
-            return self.INDENT + "field public" + lexeme + " " + self.getJVMType(in_) + self.END
+            return ".field public " + lexeme + " " + self.getJVMType(in_) + self.END
 
     def emitGETSTATIC(self, lexeme, in_, frame):
         #lexeme: String
@@ -300,8 +300,8 @@ class Emitter():
         #in_: Type
         #frame: Frame
 
-        frame.pop()
-        frame.pop()
+        # frame.pop()
+        # frame.pop()
         return self.jvm.emitPUTFIELD(lexeme, self.getJVMType(in_))
 
     ''' generate code to invoke a static method
@@ -354,6 +354,15 @@ class Emitter():
         if not type(typ) is VoidType:
             frame.push()
         return self.jvm.emitINVOKEVIRTUAL(lexeme, self.getJVMType(in_))
+
+    def emitINVOKEINTERFACE(self, lexeme, in_,frame):
+        # in_:Mtype
+        typ = in_
+        list(map(lambda x: frame.pop(), typ.partype))
+        frame.pop()
+        if not type(typ) is VoidType:
+            frame.push()
+        return self.INDENT + "invokeinterface " + lexeme + self.getJVMType(in_) + " " + str(len(in_.partype)+1) + self.END    
 
     '''
     *   generate ineg, fneg.
@@ -718,7 +727,17 @@ class Emitter():
 
         result = list()
         result.append(self.jvm.emitSOURCE(name + ".java"))
-        result.append(self.jvm.emitCLASS("public " + name))
+        result.append(self.jvm.emitCLASS("public  " + name))
+        result.append(self.jvm.emitSUPER("java/land/Object" if parent == "" else parent))
+        return ''.join(result)
+
+    def emitPROLOGINTERFACE(self, name, parent):
+        #name: String
+        #parent: String
+
+        result = list()
+        result.append(self.jvm.emitSOURCE(name + ".java"))
+        result.append(self.jvm.emitCLASS("public interface " + name))
         result.append(self.jvm.emitSUPER("java/land/Object" if parent == "" else parent))
         return ''.join(result)
 
@@ -764,13 +783,14 @@ class Emitter():
         return self.jvm.emitPUSHNULL()
 
     def emitIMPLEMENT(self,lexeme):
-        return  self.INDENT + "implements " + lexeme + self.END
+        return  ".implements " + lexeme + self.END
+ 
 
 
     def emitABSTRACTMETHOD(self, lexeme, in_,retType):
         #lexeme:str
         #in_: list(Type)
-        return "method public abstract " + lexeme + "(" +"".join([self.getJVMType(i) for i in in_]) + ")" + self.getJVMType(retType) +  self.END
+        return self.END+".method public abstract " + lexeme + "(" +"".join([self.getJVMType(i) for i in in_]) + ")" + self.getJVMType(retType) +  self.END
 
     ''' print out the code to screen
     *   @param in the code to be printed out

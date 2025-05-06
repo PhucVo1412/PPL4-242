@@ -1,5 +1,5 @@
 .source MiniGoClass.java
-.class public MiniGoClass
+.class public  MiniGoClass
 .super java.lang.Object
 .field static MAX I
 

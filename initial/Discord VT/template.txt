@@ -1,0 +1,100 @@
+    def visitProgram(self, ast, c):
+        #decl : List[Decl]
+        self.fun_list = c + [Symbol(item.name, MType(list(map(lambda x: x.parType, item.params)), item.retType), CName(self.className)) for item in ast.decl if isinstance(item, FuncDecl)]
+      
+        self.list_type += list([x for x in ast.decl if isinstance(x, StructType) or isinstance(x, InterfaceType)])
+
+        for item in ast.decl:
+            if type(item) is MethodDecl:
+                structName = item.recType.name
+                structFound = self.lookup(structName,self.list_type,lambda x: x.name)
+                structFound.methods += [item]
+            
+                
+
+        env = {}
+        env['env'] = [c]
+
+        self.emit.printout(self.emit.emitPROLOG(self.className, "java.lang.Object"))
+        env = reduce(lambda a, x: self.visit(x, a) if isinstance(x, VarDecl) or  isinstance(x, ConstDecl) else a, ast.decl, env)
+
+        env = reduce(lambda a, x: self.visit(x, a) if isinstance(x, FuncDecl) else a, ast.decl, env)
+
+        self.emitObjectInit()
+        self.emitObjectCInit(ast,env)
+
+        self.emit.printout(self.emit.emitEPILOG())
+
+        for item in self.list_type:
+            self.struct = item
+            self.emit = Emitter(self.path + "/" + item.name + ".j")
+            self.visit(item, {
+                'env': env['env']
+            })
+        return env
+    
+    def emitObjectInit(self):
+        frame = Frame("<initial>", VoidType())  
+        self.emit.printout(self.emit.emitMETHOD("<initial>", MType([], VoidType()), False, frame))  # Bắt đầu định nghĩa phương thức <init>
+        frame.enterScope(True)  
+        self.emit.printout(self.emit.emitVAR(frame.getNewIndex(), "this", ClassType(self.className), frame.getStartLabel(), frame.getEndLabel(), frame))  
+        
+        self.emit.printout(self.emit.emitLABEL(frame.getStartLabel(), frame))
+        self.emit.printout(self.emit.emitREADVAR("this", ClassType(self.className), 0, frame))  
+        self.emit.printout(self.emit.emitINVOKESPECIAL(frame))  
+    
+        
+        self.emit.printout(self.emit.emitLABEL(frame.getEndLabel(), frame))
+        self.emit.printout(self.emit.emitRETURN(VoidType(), frame))  
+        self.emit.printout(self.emit.emitENDMETHOD(frame))  
+        frame.exitScope()  
+    
+    def emitObjectCInit(self, ast, env):
+        frame = Frame("<cinit>", VoidType())  
+        self.emit.printout(self.emit.emitMETHOD("<clinit>", MType([], VoidType()), True, frame)) 
+        frame.enterScope(True)  
+        self.emit.printout(self.emit.emitLABEL(frame.getStartLabel(), frame))
+
+        env['frame'] = frame
+        self.visit(Block([Assign(Id(item.varName), item.varInit) for item in ast.decl if isinstance(item, VarDecl) and item.varInit]  +
+                         [Assign(Id(item.conName), item.iniExpr) for item in ast.decl if isinstance(item, ConstDecl) and item.iniExpr]),env)
+        
+        self.emit.printout(self.emit.emitLABEL(frame.getEndLabel(), frame))
+        self.emit.printout(self.emit.emitRETURN(VoidType(), frame))  
+        self.emit.printout(self.emit.emitENDMETHOD(frame))  
+        frame.exitScope()
+
+    def visitFuncDecl(self, ast, o):
+        # name: str
+        # params: List[ParamDecl]
+        # retType: Type # VoidType if there is no return type
+        # body: Block
+
+        self.fun = ast
+        frame = Frame(ast.name, ast.retType)
+        isMain = ast.name == "main"
+        if isMain:
+            mtype = MType([ArrayType([None],StringType())], VoidType())
+        else:
+            mtype = MType(list(map(lambda x: x.parType, ast.params)), ast.retType)
+
+        env = o.copy()
+        env['frame'] = frame
+        self.emit.printout(self.emit.emitMETHOD(ast.name, mtype,True, frame))
+        frame.enterScope(True)
+        self.emit.printout(self.emit.emitLABEL(frame.getStartLabel(), frame))
+        env['env'] = [[]] + env['env']
+        if isMain:
+            self.emit.printout(self.emit.emitVAR(frame.getNewIndex(), "args", ArrayType([None],StringType()), frame.getStartLabel(), frame.getEndLabel(), frame))
+        else:
+            env = reduce(lambda acc,e: self.visit(e,acc),ast.params,env)
+
+        self.visit(ast.body,env)
+        self.emit.printout(self.emit.emitLABEL(frame.getEndLabel(), frame))
+
+        if type(ast.retType) is VoidType:
+            self.emit.printout(self.emit.emitRETURN(VoidType(), frame)) 
+
+        self.emit.printout(self.emit.emitENDMETHOD(frame))
+        frame.exitScope()
+        return o
