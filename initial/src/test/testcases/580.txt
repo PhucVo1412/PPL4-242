@@ -1,0 +1,7 @@
+
+        func main() {
+            var a [2][2] int = [2][2] int {{1, 2}, {3, 4}};
+            var sum int = a[0][0] + a[1][1];
+            putInt(sum);
+        }
+        

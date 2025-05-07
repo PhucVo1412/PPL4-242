@@ -1,0 +1,11 @@
+
+        func main() {
+            var i int;
+            for i := 0; i < 3; i += 1 {
+                var j int;
+                for j := 0; j < 2; j += 1 {
+                    putInt(i + j)
+                }
+            }
+        }
+        

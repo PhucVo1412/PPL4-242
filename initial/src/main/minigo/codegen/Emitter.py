@@ -27,6 +27,8 @@ class Emitter():
             return "Z"
         elif typeIn is VoidType:
             return "V"
+        elif typeIn is Id:
+            return "L" + inType.name + ";"
         elif typeIn is ArrayType:
             return "".join(["[" for x in range(len(inType.dimens))]) + self.getJVMType(inType.eleType)
         elif typeIn is MType:
@@ -166,7 +168,7 @@ class Emitter():
             return self.jvm.emitILOAD(index)
         elif type(inType) is FloatType:
             return self.jvm.emitFLOAD(index)
-        elif type(inType) is cgen.ArrayType or type(inType) is cgen.ClassType or type(inType) is StringType:
+        elif type(inType) is cgen.ArrayType or type(inType) is cgen.ClassType or type(inType) is StringType or type(inType) is Id:
             return self.jvm.emitALOAD(index)
         else:
             raise IllegalOperandException(name)
@@ -200,7 +202,7 @@ class Emitter():
             return self.jvm.emitISTORE(index)
         elif type(inType) is FloatType:
             return self.jvm.emitFSTORE(index)
-        elif type(inType) in [cgen.ArrayType, cgen.ClassType, StringType]:
+        elif type(inType) in [cgen.ArrayType, cgen.ClassType, StringType, Id]:
             return self.jvm.emitASTORE(index)
         else:
             raise IllegalOperandException(f"Illegal type '{type(inType).__name__}' for variable '{name}' in emitWRITEVAR.")
@@ -230,7 +232,7 @@ class Emitter():
         if isStatic:
             return self.jvm.emitSTATICFIELD(lexeme, self.getJVMType(in_), isFinal, value)
         else:
-            return self.jvm.emitFIELD(lexeme, self.getJVMType(in_), isFinal, value)
+            return ".field public " + lexeme + " " + self.getJVMType(in_) + self.END
 
     def emitGETSTATIC(self, lexeme, in_, frame):
         #lexeme: String
@@ -260,8 +262,8 @@ class Emitter():
         #in_: Type
         #frame: Frame
 
-        frame.pop()
-        frame.pop()
+        # frame.pop()
+        # frame.pop()
         return self.jvm.emitPUTFIELD(lexeme, self.getJVMType(in_))
 
     ''' generate code to invoke a static method
@@ -314,6 +316,15 @@ class Emitter():
         if not type(typ) is VoidType:
             frame.push()
         return self.jvm.emitINVOKEVIRTUAL(lexeme, self.getJVMType(in_))
+
+    def emitINVOKEINTERFACE(self, lexeme, in_,frame):
+        # in_:Mtype
+        typ = in_
+        list(map(lambda x: frame.pop(), typ.partype))
+        frame.pop()
+        if not type(typ) is VoidType:
+            frame.push()
+        return self.INDENT + "invokeinterface " + lexeme + self.getJVMType(in_) + " " + str(len(in_.partype)+1) + self.END    
 
     '''
     *   generate ineg, fneg.
@@ -533,9 +544,11 @@ class Emitter():
 
     '''   generate the end directive for a function.
     '''
-    def emitENDMETHOD(self, frame):
+    def emitENDMETHOD(self, frame = None):
         #frame: Frame
-
+        if frame is None:
+            return self.jvm.emitENDMETHOD()
+        
         buffer = list()
         buffer.append(self.jvm.emitLIMITSTACK(frame.getMaxOpStackSize()))
         buffer.append(self.jvm.emitLIMITLOCAL(frame.getMaxIndex()))
@@ -676,7 +689,17 @@ class Emitter():
 
         result = list()
         result.append(self.jvm.emitSOURCE(name + ".java"))
-        result.append(self.jvm.emitCLASS("public " + name))
+        result.append(self.jvm.emitCLASS("public  " + name))
+        result.append(self.jvm.emitSUPER("java/land/Object" if parent == "" else parent))
+        return ''.join(result)
+
+    def emitPROLOGINTERFACE(self, name, parent):
+        #name: String
+        #parent: String
+
+        result = list()
+        result.append(self.jvm.emitSOURCE(name + ".java"))
+        result.append(self.jvm.emitCLASS("public interface " + name))
         result.append(self.jvm.emitSUPER("java/land/Object" if parent == "" else parent))
         return ''.join(result)
 
@@ -713,7 +736,23 @@ class Emitter():
         lexeme = self.getJVMType(in_)
         return self.jvm.emitANEWARRAY(lexeme)
     
-        raise IllegalOperandException(str(in_)) 
+    def emitNEW(self, lexeme, frame):
+        frame.push()
+        return self.jvm.emitNEW(lexeme)
+
+    def emitPUSHNULL(self, frame):
+        frame.push()
+        return self.jvm.emitPUSHNULL()
+
+    def emitIMPLEMENT(self,lexeme):
+        return  ".implements " + lexeme + self.END
+ 
+
+
+    def emitABSTRACTMETHOD(self, lexeme, in_,retType):
+        #lexeme:str
+        #in_: list(Type)
+        return self.END+".method public abstract " + lexeme + "(" +"".join([self.getJVMType(i) for i in in_]) + ")" + self.getJVMType(retType) +  self.END
 
     ''' print out the code to screen
     *   @param in the code to be printed out
@@ -727,3 +766,12 @@ class Emitter():
         self.buff.clear()
 
 
+
+
+
+        
+
+
+
+
+        

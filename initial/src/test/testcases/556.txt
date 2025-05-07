@@ -1,0 +1,11 @@
+
+        func main() {
+            var a int = 10;
+            var b int = 20;
+            if (a + b == 30) {
+                putString("Sum is 30")
+            } else {
+                putString("Sum is not 30")
+            }
+        }
+        

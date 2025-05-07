@@ -1,0 +1,8 @@
+
+        func main() {
+            var i int;
+            for i := 0; i <= 3; i += 1 {
+                putInt(i * 2)
+            }
+        }
+        

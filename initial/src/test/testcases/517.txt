@@ -1,7 +1,7 @@
 
-        func foo() int {return 1;}        
-
         func main() {
-            putInt(foo())
+        var a int = 10;
+        var b int = 20;
+        putInt(a + b)
         }
-            
+        

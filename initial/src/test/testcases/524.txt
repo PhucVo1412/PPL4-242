@@ -1,0 +1,11 @@
+
+        func main() {
+        var a int = 10;
+        var b int = 10;
+        if (a == b) {
+            putString("a is equal to b")
+        } else {
+            putString("a is not equal to b")
+        }
+        }
+        

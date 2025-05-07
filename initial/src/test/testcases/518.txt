@@ -1,14 +1,7 @@
 
-        func fooInt(a int) int {  return a; }
-        func fooFloat(a float) float {  return a; }
-        func fooString(a string) string { return a; }
-        func fooBool(a boolean) boolean { return a; }
-
         func main() {
-            putInt(fooInt(2));
-            putFloat(fooFloat(1.5));
-            putString(fooString("S"));
-            putBool(fooBool(true)); 
+        var a float = 5.5;
+        var b float = 2.5;
+        putFloat(a - b)
         }
-                
         

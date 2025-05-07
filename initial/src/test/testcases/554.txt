@@ -1,0 +1,7 @@
+
+        func main() {
+            var a float = 5.5;
+            var b float = 2.5;
+            putFloat(a / b)
+        }
+        

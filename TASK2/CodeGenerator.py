@@ -288,7 +288,6 @@ class CodeGenerator(BaseVisitor,Utils):
         isMain = ast.name == "main"
         if isMain:
             mtype = MType([ArrayType([None],StringType())], VoidType())
-            #ast.body = Block([] + ast.body.member)
         else:
             mtype = MType(list(map(lambda x: x.parType, ast.params)), ast.retType)
 
@@ -871,44 +870,43 @@ class CodeGenerator(BaseVisitor,Utils):
         else :
             return IntLiteral(0)
 
-    def compare2Type(self, LSH_type, RHS_type, list_type_permission) :
-        if type(RHS_type) is StructType and RHS_type.name == "":
-            return True
+    def compare2Type(self, Ltyp, Rtyp, type_list) :
+        if type(Rtyp) is StructType and Rtyp.name == "":
+            return isinstance(Ltyp,(StructType,Interface))
+        
+        if type(Ltyp) is Id:
+            Ltyp = self.lookup(Ltyp.name, self.structface_list, lambda x: x.name  ) 
+        if type(Rtyp) is Id:
+            Rtyp = self.lookup(Rtyp.name, self.structface_list, lambda x: x.name  ) 
 
-        LSH_type = self.lookup(LSH_type.name, self.structface_list, lambda x: x.name  ) if isinstance(LSH_type, Id) else LSH_type
-        RHS_type = self.lookup(RHS_type.name, self.structface_list, lambda x: x.name  ) if isinstance(RHS_type, Id) else RHS_type
 
-        if (type(LSH_type), type(RHS_type)) in list_type_permission:
-            if isinstance(LSH_type, InterfaceType) and isinstance(RHS_type, StructType):
+        if (type(Ltyp), type(Rtyp)) in type_list:
+            if isinstance(Ltyp, InterfaceType) and isinstance(Rtyp, StructType):
                 return all(
                     any(
                         struct_methods.fun.name == inteface_method.name and
-                        self.compare2Type(struct_methods.fun.retType, inteface_method.retType,list_type_permission) and
+                        self.compare2Type(struct_methods.fun.retType, inteface_method.retType,type_list) and
                         len(struct_methods.fun.params) == len(inteface_method.params) and
                         reduce(
                             lambda x, i: x and self.compare2Type(struct_methods.fun.params[i].parType, inteface_method.params[i]),
                             range(len(struct_methods.fun.params)),
                             True
                         )
-                        for struct_methods in RHS_type.methods
+                        for struct_methods in Rtyp.methods
                     )
-                    for inteface_method in LSH_type.methods
+                    for inteface_method in Ltyp.methods
                 )
-            # Kiểm tra tương thích giữa hai InterfaceType hoặc hai StructType.
-            if isinstance(LSH_type, (StructType,InterfaceType)) and isinstance(RHS_type, (StructType,InterfaceType)):
-                return LSH_type.name == RHS_type.name 
+            if isinstance(Ltyp, (StructType,InterfaceType)) and isinstance(Rtyp, (StructType,InterfaceType)):
+                return Ltyp.name == Rtyp.name 
 
-        if isinstance(LSH_type, ArrayType) and isinstance(RHS_type, ArrayType):
-            return (len(LHS.dimens) == len(RHS.dimens)
-                    and all(
-                        l.value == r.value  for l, r in zip(LSH_type.dimens, RHS_type.dimens)
-                    )
-                    and self.compare2Type(LHS_type.eleType, RHS_type.eleType, [list_type_permission[0]] if len(list_type_permission) != 0 else []))
+        if isinstance(Ltyp, ArrayType) and isinstance(Rtyp, ArrayType):
+            return (len(LHS.dimens) == len(RHS.dimens) and all(l.value == r.value  for l, r in zip(Ltyp.dimens, Rtyp.dimens))
+                    and self.compare2Type(LHS_type.eleType, Rtyp.eleType, [type_list[0]] if len(type_list) != 0 else []))
 
-        if type(LSH_type) == type(RHS_type):
+        if type(Ltyp) is type(Rtyp):
             return True
         
-        if isinstance(LSH_type, FloatType) and isinstance(RHS_type, IntType):
+        if isinstance(Ltyp, FloatType) and isinstance(Rtyp, IntType):
             return True
 
         return False

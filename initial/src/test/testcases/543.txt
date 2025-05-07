@@ -1,0 +1,6 @@
+
+        func main() {
+            var a [3] float = [3] string {1.0, 2.0, 3.0};
+            putFloat(a[1])
+        }
+        

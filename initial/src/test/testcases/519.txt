@@ -1,9 +1,7 @@
 
-    func main() {
-        var f = true;
-        var g boolean;
-
-        putBoolLn(f)
-        putBool(g)
-    }
-     
+        func main() {
+        var a int = 6;
+        var b int = 3;
+        putInt(a / b)
+        }
+        

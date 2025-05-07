@@ -1,58 +1,37 @@
 .source MiniGoClass.java
-.class public MiniGoClass
+.class public  MiniGoClass
 .super java.lang.Object
 
 .method public static main([Ljava/lang/String;)V
 Label0:
 .var 0 is args [Ljava/lang/String; from Label0 to Label1
 Label2:
-.var 1 is a F from Label2 to Label3
+.var 1 is a Z from Label2 to Label3
 	iconst_1
-	i2f
-	ldc 2.0
-	fadd
-	fstore_1
+	istore_1
 .var 2 is b Z from Label2 to Label3
-	ldc 1.0
-	ldc 2.0
-	fcmpl
+	iconst_0
+	istore_2
+	iload_1
+	iload_2
+	iand
 	ifle Label4
-	iconst_1
+Label6:
+	ldc "Both True"
+	invokestatic io/putString(Ljava/lang/String;)V
+Label7:
 	goto Label5
 Label4:
-	iconst_0
+Label8:
+	ldc "Not Both True"
+	invokestatic io/putString(Ljava/lang/String;)V
+Label9:
 Label5:
-	istore_2
-.var 3 is c Ljava/lang/String; from Label2 to Label3
-	ldc "vo"
-	ldc "tien"
-	invokevirtual java/lang/String/concat(Ljava/lang/String;)Ljava/lang/String;
-	astore_3
-.var 4 is d Z from Label2 to Label3
-	ldc "a"
-	ldc "b"
-	invokevirtual java/lang/String/compareTo(Ljava/lang/String;)I
-	iconst_0
-	if_icmpge Label6
-	iconst_1
-	goto Label7
-Label6:
-	iconst_0
-Label7:
-	istore 4
-	fload_1
-	invokestatic io/putFloatLn(F)V
-	iload_2
-	invokestatic io/putBoolLn(Z)V
-	aload_3
-	invokestatic io/putStringLn(Ljava/lang/String;)V
-	iload 4
-	invokestatic io/putBoolLn(Z)V
 Label3:
 Label1:
 	return
-.limit stack 7
-.limit locals 5
+.limit stack 4
+.limit locals 3
 .end method
 
 .method public <init>()V

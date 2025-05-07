@@ -1,0 +1,11 @@
+
+        type Laptop struct {
+            model string;
+            price float;
+        }
+
+        func main() {
+            var l Laptop = Laptop{model: "Dell", price: 999.99};
+            putFloat(l.price);
+        }
+        

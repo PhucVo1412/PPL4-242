@@ -1,0 +1,11 @@
+
+        func main() {
+            var a int = 15;
+            var b int = 10;
+            if (a % b == 5) {
+                putString("Remainder is 5")
+            } else {
+                putString("Remainder is not 5")
+            }
+        }
+        

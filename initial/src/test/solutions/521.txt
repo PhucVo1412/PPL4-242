@@ -1,4 +1,1 @@
-3.0
-false
-votien
-true
+Not Both True

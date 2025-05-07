@@ -1,0 +1,11 @@
+
+        type Student struct {
+            id int;
+            grade float;
+        }
+
+        func main() {
+            var s Student = Student{id: 101, grade: 95.5};
+            putFloat(s.grade);
+        }
+        

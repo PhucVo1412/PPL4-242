@@ -583,3 +583,14 @@ func main(){
 }
         """
         self.assertTrue(TestCodeGen.test(input, "10", inspect.stack()[0].function))
+    
+    def test_599(self):
+        input = """func main() {
+            var a [3] int = [3] int {1, 2, 3};
+            a[1] = 10;
+            putInt(a[1])
+        
+        }
+        """
+
+        self.assertTrue(TestCodeGen.test(input, "10", inspect.stack()[0].function))

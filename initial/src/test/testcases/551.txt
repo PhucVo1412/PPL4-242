@@ -1,0 +1,10 @@
+
+        func main() {
+            var a [2][2] int = [2][2] int {{1, 2}, {3, 4}};
+            if (a[0][1] == 2) {
+                putString("Correct")
+            } else {
+                putString("Incorrect")
+            }
+        }
+        

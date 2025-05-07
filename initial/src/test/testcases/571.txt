@@ -1,0 +1,11 @@
+
+        type Rectangle struct {
+            width int;
+            height int;
+        }
+
+        func main() {
+            var r Rectangle = Rectangle{width: 5, height: 10};
+            putInt(r.width * r.height);
+        }
+        

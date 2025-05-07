@@ -1,0 +1,7 @@
+
+        func main() {
+            var a int = 5;
+            var b int = 3;
+            putInt(a * b)
+        }
+        

@@ -1,0 +1,11 @@
+
+        func main() {
+            var a int = 5;
+            var b int = 10;
+            if (a * b == 50) {
+                putString("Product is 50");
+            } else {
+                putString("Product is not 50");
+            }
+        }
+        

@@ -1,7 +1,11 @@
 
         func main() {
-            var a [1] int ;
-            a[0] := 1
-            putInt(a[0]);
+        var a boolean = true;
+        var b boolean = false;
+        if (a || b) {
+            putString("At Least One True")
+        } else {
+            putString("None True")
+        }
         }
         

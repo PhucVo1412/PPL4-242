@@ -1,0 +1,11 @@
+
+        func main() {
+        var a int = 15;
+        var b int = 10;
+        if (a > b) {
+            putString("a is greater than b")
+        } else {
+            putString("a is not greater than b")
+        }
+        }
+        

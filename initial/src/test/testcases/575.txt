@@ -1,0 +1,11 @@
+
+        type Book struct {
+            title string;
+            pages int;
+        }
+
+        func main() {
+            var b Book = Book{title: "PPL", pages: 300};
+            putString(b.title);
+        }
+        

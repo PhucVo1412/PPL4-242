@@ -1,7 +1,7 @@
 .source MiniGoClass.java
 .class public  MiniGoClass
 .super java.lang.Object
-.field static MAX I
+.field static final MAX I
 
 .method public static bfs([[II)V
 Label0:

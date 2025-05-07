@@ -1,0 +1,10 @@
+
+        type Circle struct {
+            radius float;
+        }
+
+        func main() {
+            var c Circle = Circle{radius: 3.5};
+            putFloat(c.radius * c.radius * 3.14);
+        }
+        

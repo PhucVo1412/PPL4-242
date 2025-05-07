@@ -1,0 +1,11 @@
+
+        type Car struct {
+            brand string;
+            year int;
+        }
+
+        func main() {
+            var c Car = Car{brand: "Toyota", year: 2020};
+            putString(c.brand);
+        }
+        

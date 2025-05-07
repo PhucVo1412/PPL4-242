@@ -1,25 +1,25 @@
 .source MiniGoClass.java
-.class public MiniGoClass
+.class public  MiniGoClass
 .super java.lang.Object
 
 .method public static main([Ljava/lang/String;)V
 Label0:
 .var 0 is args [Ljava/lang/String; from Label0 to Label1
 Label2:
-.var 1 is f Z from Label2 to Label3
-	iconst_1
+.var 1 is a I from Label2 to Label3
+	bipush 6
 	istore_1
-.var 2 is g Z from Label2 to Label3
-	iconst_0
+.var 2 is b I from Label2 to Label3
+	iconst_3
 	istore_2
 	iload_1
-	invokestatic io/putBoolLn(Z)V
 	iload_2
-	invokestatic io/putBool(Z)V
+	idiv
+	invokestatic io/putInt(I)V
 Label3:
 Label1:
 	return
-.limit stack 3
+.limit stack 2
 .limit locals 3
 .end method
 

@@ -1,0 +1,11 @@
+
+        type Employee struct {
+            name string;
+            salary int;
+        }
+
+        func main() {
+            var e Employee = Employee{name: "John", salary: 5000};
+            putInt(e.salary);
+        }
+        
